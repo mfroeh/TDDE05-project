@@ -8,8 +8,9 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(air_interfaces REQUIRED)
-find_package(nav2_msgs REQUIRED)
+find_package(air_interfaces REQUIRED) # GetPosition
+find_package(nav2_msgs REQUIRED) # Odometry
+find_package(geometry_msgs REQUIRED) # Point
 
 add_executable(position_service src/position_service.cpp)
 target_include_directories(position_service PUBLIC
@@ -21,6 +22,7 @@ ament_target_dependencies(
   "rclcpp"
   "air_interfaces"
   "nav2_msgs"
+  "geometry_msgs"
 )
 
 install(TARGETS position_service
