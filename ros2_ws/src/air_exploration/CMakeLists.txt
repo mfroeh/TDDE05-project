@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(exploration)
+project(air_exploration)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -8,7 +8,7 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(interfaces REQUIRED)
+find_package(air_interfaces REQUIRED)
 find_package(nav2_msgs REQUIRED)
 
 add_executable(position_service src/position_service.cpp)
@@ -19,7 +19,7 @@ target_compile_features(position_service PUBLIC c_std_99 cxx_std_17)  # Require 
 ament_target_dependencies(
   position_service
   "rclcpp"
-  "interfaces"
+  "air_interfaces"
   "nav2_msgs"
 )
 

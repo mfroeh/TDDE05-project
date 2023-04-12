@@ -1,15 +1,13 @@
-#include <cstdio>
-
 #include "rclcpp/rclcpp.hpp"
 #include "nav_msgs/msg/odometry.hpp"
-#include "interfaces/srv/get_position.hpp"
+#include "air_interfaces/srv/get_position.hpp"
 
 using namespace rclcpp;
 using namespace std::placeholders;
 
 using geometry_msgs::msg::Point;
 using nav_msgs::msg::Odometry;
-using ServiceT = interfaces::srv::GetPosition;
+using ServiceT = air_interfaces::srv::GetPosition;
 
 class PositionService : public Node
 {
@@ -32,7 +30,7 @@ private:
     RCLCPP_DEBUG_STREAM(get_logger(), "Received position x: " << last_pos.x << " y: " << last_pos.y << " z: " << last_pos.z);
   }
 
-  void serve(const ServiceT::Request::SharedPtr req, ServiceT::Response::SharedPtr response)
+  void serve(const ServiceT::Request::SharedPtr, ServiceT::Response::SharedPtr response)
   {
     RCLCPP_DEBUG(get_logger(), "Received get_position request");
     response->point = last_pos;
