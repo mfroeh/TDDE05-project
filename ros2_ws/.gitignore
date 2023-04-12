@@ -1,0 +1,65 @@
+# ROS2 specific files to ignore
+
+# Build output
+/build/
+/install/
+
+# Log files
+/log/
+
+# ROS2 generated files
+/rosidl_typesupport_c/
+/rosidl_typesupport_cpp/
+/rosidl_typesupport_introspection_c/
+/rosidl_typesupport_introspection_cpp/
+
+# ROS2 test output
+/build_isolated/
+/install_isolated/
+
+# IDE specific files and directories to ignore
+
+# Visual Studio Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Miscellaneous files and directories to ignore
+
+# Compiled Python files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Compiled C++ files
+*.o
+*.so
+*.a
+
+# CMake build directories
+CMakeLists.txt.user
+build_*/
+
+# Miscellaneous
+*.log
+*.swp
+*.swo
+*.tmp
+*.bak
+*.cache
+*.DS_Store
+*.pyc
+*.pyo
+*.pyd
+*.pyc
+*.egg-info/
+*.pyc
+
+# Custom ignore patterns (add your own patterns below this line)
