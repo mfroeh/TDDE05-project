@@ -9,6 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(interfaces REQUIRED)
+find_package(nav2_msgs REQUIRED)
 
 add_executable(position_service src/position_service.cpp)
 target_include_directories(position_service PUBLIC
@@ -19,6 +20,7 @@ ament_target_dependencies(
   position_service
   "rclcpp"
   "interfaces"
+  "nav2_msgs"
 )
 
 install(TARGETS position_service
