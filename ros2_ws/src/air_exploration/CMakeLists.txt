@@ -12,6 +12,7 @@ find_package(air_interfaces REQUIRED) # GetPosition
 find_package(nav2_msgs REQUIRED) # Odometry
 find_package(geometry_msgs REQUIRED) # Point
 
+# position_service
 add_executable(position_service src/position_service.cpp)
 target_include_directories(position_service PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -25,7 +26,18 @@ ament_target_dependencies(
   "geometry_msgs"
 )
 
-install(TARGETS position_service
+# exploration
+add_executable(exploration src/exploration.cpp) # Add new executable
+target_include_directories(exploration PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(exploration PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+ament_target_dependencies(
+  exploration
+  "rclcpp"
+)
+
+install(TARGETS position_service exploration
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
