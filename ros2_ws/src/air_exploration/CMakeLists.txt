@@ -8,9 +8,13 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(air_interfaces REQUIRED) # GetPosition
 find_package(nav2_msgs REQUIRED) # Odometry
 find_package(geometry_msgs REQUIRED) # Point
+
+# add include dirs
+include_directories(include)
 
 # position_service
 add_executable(position_service src/position_service.cpp)
@@ -26,18 +30,20 @@ ament_target_dependencies(
   "geometry_msgs"
 )
 
-# exploration
-add_executable(exploration src/exploration.cpp) # Add new executable
-target_include_directories(exploration PUBLIC
+# exploration_server
+add_executable(exploration_server src/exploration_server.cpp) # Add new executable
+target_include_directories(exploration_server PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-target_compile_features(exploration PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_compile_features(exploration_server PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 ament_target_dependencies(
-  exploration
+  exploration_server
   "rclcpp"
+  "rclcpp_action"
+  "air_interfaces"
 )
 
-install(TARGETS position_service exploration
+install(TARGETS position_service exploration_server
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)

@@ -1,6 +1,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "air_interfaces/srv/get_position.hpp"
+#include "exploration_constants.hpp"
 
 using namespace rclcpp;
 using namespace std::placeholders;
@@ -12,10 +13,10 @@ using ServiceT = air_interfaces::srv::GetPosition;
 class PositionService : public Node
 {
 public:
-  PositionService() : Node{"position_service"}
+  PositionService() : Node{POSITION_SERVICE_NODE}
   {
     odom_subscription = create_subscription<Odometry>("odom", 10, std::bind(&PositionService::handle_odom_msg, this, _1));
-    service = create_service<ServiceT>("get_position", std::bind(&PositionService::serve, this, _1, _2));
+    service = create_service<ServiceT>(POSITION_SERVICE_TOPIC, std::bind(&PositionService::serve, this, _1, _2));
   }
 
 private:
