@@ -1,0 +1,29 @@
+# Configuration
+deflogin on
+autodetach off
+
+caption always
+
+bindkey ^w screen
+bindkey ^p prev
+bindkey ^n next
+bindkey ^x quit
+bind q quit
+bindkey ^l windowlist
+bindkey ^e copy
+
+# Pre-defined tabs
+
+screen 0
+title "Simulator"
+stuff "tdde05-start; ros2 launch air_bringup turtle.launch.py world:=office_1 localization:=true slam:=off\015"
+
+screen 2
+title "rviz"
+stuff "start-tdde05; rviz2 -d $HOME/TDDE05/ros2_ws/src/air_common/rviz/config.rviz\015"
+
+screen 3
+title "rqt"
+stuff "tdde05-start; rqt\015"
+
+
