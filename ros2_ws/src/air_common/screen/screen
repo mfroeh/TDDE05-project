@@ -16,7 +16,7 @@ bindkey ^e copy
 
 screen 0
 title "Simulator"
-stuff "tdde05-start; ros2 launch air_bringup turtle.launch.py world:=office_1 localization:=true slam:=off\015"
+stuff "tdde05-start; ros2 launch air_bringup turtle.launch.py world:=office_1\015"
 
 screen 2
 title "rviz"
@@ -26,4 +26,6 @@ screen 3
 title "rqt"
 stuff "tdde05-start; rqt\015"
 
-
+screen 4
+title "Other"
+stuff "tdde05-start\015"

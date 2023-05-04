@@ -11,6 +11,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(air_interfaces REQUIRED) # GetPosition
 find_package(nav2_msgs REQUIRED) # Odometry
+find_package(nav_msgs REQUIRED) # Slam toolbox
 find_package(geometry_msgs REQUIRED) # Point
 
 # add include dirs
@@ -31,7 +32,7 @@ ament_target_dependencies(
 )
 
 # exploration_server
-add_executable(exploration_server src/exploration_server.cpp) # Add new executable
+add_executable(exploration_server src/exploration_server src/map) # Add new executable
 target_include_directories(exploration_server PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
@@ -39,6 +40,8 @@ target_compile_features(exploration_server PUBLIC c_std_99 cxx_std_17)  # Requir
 ament_target_dependencies(
   exploration_server
   "rclcpp"
+  "nav_msgs"
+  "nav2_msgs"
   "rclcpp_action"
   "air_interfaces"
 )
