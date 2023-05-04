@@ -4,8 +4,10 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
+#include "nav_msgs/msg/occupancy_grid.hpp"
 #include "air_interfaces/action/explore.hpp"
 #include "exploration_constants.hpp"
+#include "map.hpp"
 
 using namespace rclcpp;
 using namespace rclcpp_action;
@@ -13,6 +15,8 @@ using namespace std::placeholders;
 
 using ActionT = air_interfaces::action::Explore;
 using GoalHandleT = ServerGoalHandle<ActionT>;
+
+using nav_msgs::msg::OccupancyGrid;
 
 const char *NODE_NAME = "exploration_server";
 const char *ACTION_NAME = "exploration";
@@ -22,7 +26,7 @@ class ExplorationActionServer : public Node
 public:
     using Self = ExplorationActionServer;
 
-    ExplorationActionServer() : Node{EXPLORATION_SERVER_NODE}
+    ExplorationActionServer() : Node{EXPLORATION_SERVER_NODE}, map{0, 0}
     {
         server = create_server<ActionT>(
             this,
@@ -30,10 +34,14 @@ public:
             std::bind(&Self::handle_goal, this, _1, _2),
             std::bind(&Self::handle_cancel, this, _1),
             std::bind(&Self::handle_accepted, this, _1));
+
+        map_sub = create_subscription<OccupancyGrid>("map", 10, std::bind(&Self::map_callback, this, _1));
     }
 
 private:
     Server<ActionT>::SharedPtr server;
+    Subscription<OccupancyGrid>::SharedPtr map_sub;
+    Map map;
 
     /// @brief Handles incoming goal requests
     /// @param uuid
@@ -60,6 +68,12 @@ private:
     {
         // TODO: Should keep track of threads and cancel goal if thread is still running
         std::thread{std::bind(&Self::begin_explore, this, _1), goal_handle}.detach();
+    }
+
+    void map_callback(const OccupancyGrid::SharedPtr msg)
+    {
+        map.update(msg);
+        RCLCPP_INFO_STREAM(get_logger(), map);
     }
 
     // Go to the nearest frontier
