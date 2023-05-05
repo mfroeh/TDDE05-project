@@ -13,6 +13,7 @@ find_package(air_interfaces REQUIRED) # GetPosition
 find_package(nav2_msgs REQUIRED) # Odometry
 find_package(nav_msgs REQUIRED) # Slam toolbox
 find_package(geometry_msgs REQUIRED) # Point
+# find_package(irobot_create_msgs REQUIRED) # Drive to position
 
 # add include dirs
 include_directories(include)
@@ -32,7 +33,7 @@ ament_target_dependencies(
 )
 
 # exploration_server
-add_executable(exploration_server src/exploration_server src/map) # Add new executable
+add_executable(exploration_server src/exploration_server src/frontier src/driver) # Add new executable
 target_include_directories(exploration_server PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
@@ -44,6 +45,7 @@ ament_target_dependencies(
   "nav2_msgs"
   "rclcpp_action"
   "air_interfaces"
+  # "irobot_create_msgs"
 )
 
 install(TARGETS position_service exploration_server

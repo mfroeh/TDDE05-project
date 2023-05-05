@@ -1,14 +1,14 @@
-#include "map.hpp"
+#include "frontier.hpp"
 #include <algorithm>
 
 std::ostream &operator<<(std::ostream &os, Map const &map)
 {
     os << "Size: " << map.width << "x" << map.height << std::endl;
     // TODO: Somehow prints unicode characters
-    for (size_t i = 0; i < map.height; ++i)
+    for (size_t i{}; i < map.height; ++i)
     {
-        for (size_t j = 0; j < map.width; ++j)
-            os << map.matrix[i][j];
+        for (size_t j{}; j < map.width; ++j)
+            os << map.matrix.at(i).at(j) << " ";
         os << std::endl;
     }
     return os;
@@ -16,7 +16,6 @@ std::ostream &operator<<(std::ostream &os, Map const &map)
 
 void Map::update(const OccupancyGrid::SharedPtr grid)
 {
-    std::cout << height << std::endl;
     if (height == 0 || width == 0)
     {
         height = grid->info.height;
@@ -32,4 +31,26 @@ void Map::update(const OccupancyGrid::SharedPtr grid)
     assert(width == grid->info.width);
 
     // Update the grid
+}
+
+Point Frontier::center()
+{
+}
+
+float Frontier::distance_to(Point point)
+{
+}
+
+Frontier Algorithm::pop()
+{
+}
+
+void Algorithm::update_map(const OccupancyGrid::SharedPtr grid)
+{
+    map.update(grid);
+}
+
+size_t Algorithm::count()
+{
+    return frontiers.size();
 }
