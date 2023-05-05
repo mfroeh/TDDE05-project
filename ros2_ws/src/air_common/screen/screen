@@ -27,5 +27,9 @@ title "rqt"
 stuff "tdde05-start; rqt\015"
 
 screen 4
-title "Other"
-stuff "tdde05-start\015"
+title "Other I"
+stuff "bash tdde05-start\015"
+
+screen 5
+title "Other II"
+stuff "bash tdde05-start\015"
