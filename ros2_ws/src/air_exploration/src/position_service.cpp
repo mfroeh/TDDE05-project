@@ -28,14 +28,14 @@ private:
   void handle_odom_msg(const Odometry::SharedPtr msg)
   {
     last_pos = msg->pose.pose.position;
-    RCLCPP_DEBUG_STREAM(get_logger(), "Received position x: " << last_pos.x << " y: " << last_pos.y << " z: " << last_pos.z);
+    RCLCPP_INFO_STREAM(get_logger(), "Received position x: " << last_pos.x << " y: " << last_pos.y << " z: " << last_pos.z);
   }
 
   void serve(const ServiceT::Request::SharedPtr, ServiceT::Response::SharedPtr response)
   {
-    RCLCPP_DEBUG(get_logger(), "Received get_position request");
+    RCLCPP_INFO(get_logger(), "Received get_position request");
     response->point = last_pos;
-    RCLCPP_DEBUG(get_logger(), "Sent last_pos");
+    RCLCPP_INFO(get_logger(), "Sent last_pos");
   }
 };
 
