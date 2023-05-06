@@ -1,14 +1,23 @@
 #include <thread>
 #include <chrono>
 #include <iostream>
+#include <future>
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "nav2_msgs/action/navigate_to_pose.hpp"
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
 #include "air_interfaces/action/explore.hpp"
+#include "air_interfaces/srv/get_position.hpp"
 #include "exploration_constants.hpp"
 #include "frontier.hpp"
+
+#include "geometry_msgs/msg/point.hpp"
+#include "geometry_msgs/msg/point_stamped.hpp"
+#include "geometry_msgs/msg/transform_stamped.hpp"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
 using namespace rclcpp;
 using namespace rclcpp_action;
@@ -16,6 +25,11 @@ using namespace std::placeholders;
 
 using ActionT = air_interfaces::action::Explore;
 using GoalHandleT = ServerGoalHandle<ActionT>;
+using PositionServiceT = air_interfaces::srv::GetPosition;
+
+using geometry_msgs::msg::Point;
+using geometry_msgs::msg::PointStamped;
+using geometry_msgs::msg::TransformStamped;
 
 using nav2_msgs::action::NavigateToPose;
 using nav_msgs::msg::OccupancyGrid;
@@ -37,6 +51,11 @@ public:
         map_sub = create_subscription<OccupancyGrid>("map", 10, std::bind(&Self::map_callback, this, _1));
 
         driver = rclcpp_action::create_client<NavigateToPose>(this, "navigate_to_pose");
+
+        position_client = create_client<PositionServiceT>(POSITION_SERVICE_TOPIC);
+        // The tf_buffer and tf_listener needs to be kept alive and should be created in a constructor
+        tf_buffer = std::make_unique<tf2_ros::Buffer>(get_clock());
+        tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
     }
 
 private:
@@ -44,6 +63,10 @@ private:
     Subscription<OccupancyGrid>::SharedPtr map_sub;
     rclcpp_action::Client<NavigateToPose>::SharedPtr driver;
     Algorithm algo;
+
+    rclcpp::Client<PositionServiceT>::SharedPtr position_client;
+    std::unique_ptr<tf2_ros::Buffer> tf_buffer;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener;
 
     /// @brief Handles incoming goal requests
     /// @param uuid
@@ -77,6 +100,24 @@ private:
     void map_callback(const OccupancyGrid::SharedPtr msg)
     {
         algo.update_map(msg);
+        RCLCPP_INFO(get_logger(), "Updated map");
+
+        position_client->async_send_request(
+            std::make_shared<PositionServiceT::Request>(),
+            [this](rclcpp::Client<PositionServiceT>::SharedFuture future) -> void
+            {
+                Point pos{future.get()->point};
+                auto frontiers{algo.compute_frontiers(pos)};
+            });
+
+        // future_result.wait();
+        // Point pos{future_result.get()->point};
+        // RCLCPP_INFO(get_logger(), "Current position: x: %f, y: %f", pos.x, pos.y);
+        // }
+        // else
+        // {
+        //     RCLCPP_ERROR(get_logger(), "Failed to get current position");
+        // }
     }
 
     // Go to the nearest frontier
@@ -151,3 +192,32 @@ int main(int argc, char const *argv[])
     spin(std::make_shared<ExplorationActionServer>());
     shutdown();
 }
+
+/*
+
+                // RCLCPP_INFO(get_logger(), "Point: (%f, %f)", pos.x, pos.y);
+
+                PointStamped odom_pos{};
+                odom_pos.header.frame_id = "odom";
+                odom_pos.point = pos;
+
+                try
+                {
+                    // Get the transform from odom to map
+                    // TransformStamped transform{tf_buffer->lookupTransform("map", "odom", Time(0))};
+
+                    // Transform the point from odom to map
+                    // map_pos.header.frame_id = "map";
+                    // map_pos.header.stamp = Time(0);
+                    // map_pos.point = odom_pos;
+                    // tf2::doTransform(map_pos, map_pos, transform);
+                    PointStamped map_pos{};
+                    tf_buffer->transform(odom_pos, map_pos, "map");
+                    RCLCPP_INFO(get_logger(), "Transformed odom (%f, %f) to map (%f, %f)", pos.x, pos.y, map_pos.point.x, map_pos.point.y);
+                }
+                catch (const tf2::TransformException &ex)
+                {
+                    RCLCPP_ERROR(get_logger(), "Could not transform %s to %s: %s", "odom", "map", ex.what());
+                    return;
+                }
+*/

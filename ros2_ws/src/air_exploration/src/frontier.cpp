@@ -1,5 +1,6 @@
 #include "frontier.hpp"
 #include <algorithm>
+#include <numeric>
 
 std::ostream &operator<<(std::ostream &os, Map const &map)
 {
@@ -16,6 +17,7 @@ std::ostream &operator<<(std::ostream &os, Map const &map)
 
 void Map::update(const OccupancyGrid::SharedPtr grid)
 {
+    // TODO: Maybe we can just always replace the entire map with grid
     if (height == 0 || width == 0)
     {
         height = grid->info.height;
@@ -26,28 +28,103 @@ void Map::update(const OccupancyGrid::SharedPtr grid)
         for (size_t row{}; row < height; ++row)
             std::copy(&grid->data[row * width], &grid->data[(row + 1) * width], std::back_inserter(matrix[row]));
     }
+    else
+    {
+        resolution = grid->info.resolution;
+        origin = grid->info.origin;
 
-    assert(height == grid->info.height);
-    assert(width == grid->info.width);
+        if (height != grid->info.height)
+        {
+            height = grid->info.height;
+            matrix.resize(height);
+        }
 
-    // Update the grid
+        if (width != grid->info.width)
+        {
+            width = grid->info.width;
+            for (size_t row{}; row < height; ++row)
+                matrix[row].resize(width);
+        }
+
+        for (size_t row{}; row < height; ++row)
+            for (size_t col{}; col < width; ++col)
+                matrix[row][col] = grid->data[row * width + col];
+    }
+}
+
+int8_t Map::at(int x, int y) const
+{
+    return matrix.at(y).at(x);
+}
+
+uint32_t Map::get_width() const
+{
+    return width;
+}
+
+uint32_t Map::get_height() const
+{
+    return height;
+}
+
+std::tuple<size_t, size_t> Map::index_from_point(Point pos) const
+{
+    // Calculate distance between pos and occupancy grid origin
+    double dx{pos.x - origin.position.x};
+    double dy{pos.y - origin.position.y};
+
+    // Convert distance to cells
+    size_t cell_x{std::round(dx / resolution)};
+    size_t cell_y{std::round(dy / resolution)};
+
+    return {cell_x, cell_y};
+}
+
+Point Map::point_from_index(size_t x, size_t y) const
+{
+    return {};
 }
 
 Point Frontier::center()
 {
+    Point sum{std::accumulate(points.begin(), points.end(), Point{}, [](Point &p1, Point const &p2)
+                              { p1.x += p2.x; p1.y += p2.y; return p1; })};
+    sum.x /= points.size();
+    sum.y /= points.size();
+    return sum;
 }
 
 float Frontier::distance_to(Point point)
 {
 }
 
+bool Frontier::operator<(Frontier const &other) const
+{
+    return true;
+}
+
 Frontier Algorithm::pop()
 {
+}
+
+std::vector<Frontier> Algorithm::compute_frontiers(Point start)
+{
+    // Get starting cell
+    auto [x, y]{map.index_from_point(start)};
+    std::cout << "Starting cell: " << x << ", " << y << ": " << map.at(x, y) << std::endl;
+    assert(map.at(x, y) == 0);
+
+    return {};
 }
 
 void Algorithm::update_map(const OccupancyGrid::SharedPtr grid)
 {
     map.update(grid);
+
+    // TODO
+    // Frontier f{};
+    // f.points.push_back(Point{map.at(map.height() - 1, map.width() - 1)});
+    // frontiers.push(f);
 }
 
 size_t Algorithm::count()

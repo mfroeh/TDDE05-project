@@ -13,6 +13,11 @@ find_package(air_interfaces REQUIRED) # GetPosition
 find_package(nav2_msgs REQUIRED) # Odometry
 find_package(nav_msgs REQUIRED) # Slam toolbox
 find_package(geometry_msgs REQUIRED) # Point
+
+find_package(tf2_ros REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+
 # find_package(irobot_create_msgs REQUIRED) # Drive to position
 
 # add include dirs
@@ -45,6 +50,9 @@ ament_target_dependencies(
   "nav2_msgs"
   "rclcpp_action"
   "air_interfaces"
+  "tf2_ros"
+  "tf2"
+  "tf2_geometry_msgs"
   # "irobot_create_msgs"
 )
 
