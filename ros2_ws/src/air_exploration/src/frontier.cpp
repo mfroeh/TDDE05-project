@@ -1,6 +1,7 @@
 #include "frontier.hpp"
 #include <algorithm>
 #include <numeric>
+#include <queue>
 
 std::ostream &operator<<(std::ostream &os, Map const &map)
 {
@@ -69,15 +70,6 @@ uint32_t Map::get_height() const
 
 std::tuple<size_t, size_t> Map::index_from_point(Point pos) const
 {
-    // Calculate distance between pos and occupancy grid origin
-    double dx{pos.x - origin.position.x};
-    double dy{pos.y - origin.position.y};
-
-    // Convert distance to cells
-    size_t cell_x{std::round(dx / resolution)};
-    size_t cell_y{std::round(dy / resolution)};
-
-    return {cell_x, cell_y};
 }
 
 Point Map::point_from_index(size_t x, size_t y) const
@@ -107,15 +99,6 @@ Frontier Algorithm::pop()
 {
 }
 
-std::vector<Frontier> Algorithm::compute_frontiers(Point start)
-{
-    // Get starting cell
-    auto [x, y]{map.index_from_point(start)};
-    std::cout << "Starting cell: " << x << ", " << y << ": " << map.at(x, y) << std::endl;
-    assert(map.at(x, y) == 0);
-
-    return {};
-}
 
 void Algorithm::update_map(const OccupancyGrid::SharedPtr grid)
 {
