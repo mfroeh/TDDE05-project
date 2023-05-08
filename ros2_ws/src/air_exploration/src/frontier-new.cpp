@@ -1,9 +1,134 @@
-#include "frontier.hpp"
-<<<<<<< HEAD
-<<<<<<< HEAD
-
 #include <queue>
+#include <vector>
 #include <algorithm>
+
+#include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/point.hpp>
+#include <geometry_msgs/msg/pose.hpp>
+#include <nav_msgs/msg/occupancy_grid.hpp>
+
+// http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/OccupancyGrid.html
+#define PRIOR 20
+
+using geometry_msgs::msg::Point;
+using geometry_msgs::msg::Pose;
+using nav_msgs::msg::OccupancyGrid;
+
+struct Map
+{
+    size_t width{}, height{};
+    Pose origin{};
+    float resolution{};
+
+    void update(OccupancyGrid::SharedPtr const grid)
+    {
+        // TODO
+    }
+
+    int8_t get(size_t index) const
+    {
+        assert(index < width * height);
+        return data[index];
+    }
+
+    int8_t get(size_t y, size_t x) const
+    {
+        assert(y < height && x < width);
+        return data[y * width + x];
+    }
+
+    size_t index_from_point(Point p) const
+    {
+        // Calculate distance between pos and occupancy grid origin
+        double dx{p.x - origin.position.x};
+        double dy{p.y - origin.position.y};
+
+        // Convert distance to cells
+        size_t cell_x{std::round(dx / resolution)};
+        size_t cell_y{std::round(dy / resolution)};
+
+        return cell_y * width + cell_x;
+    }
+
+    Point point_from_index(size_t index) const
+    {
+        Point p{};
+        // TODO
+        return p;
+    }
+
+private:
+    std::vector<int8_t> data{};
+};
+
+struct Cell
+{
+    size_t x, y;
+
+    Cell(size_t x, size_t y) : x{x}, y{y} {}
+    Cell(size_t index, Map const &map) : x{index % map.width}, y{index / map.width} {}
+
+    size_t to_index(Map const &map) const
+    {
+        return y * map.width + x;
+    }
+
+    std::vector<Cell> adjacent(Map const &map) const
+    {
+        std::vector<Cell> adj{};
+        adj.push_back({x - 1, y});
+        adj.push_back({x + 1, y});
+        adj.push_back({x, y - 1});
+        adj.push_back({x, y + 1});
+        adj.erase(std::remove_if(adj.begin(), adj.end(), [map](Cell const &c)
+                                 { return !c.valid(map); }),
+                  adj.end());
+        return adj;
+    }
+
+    std::vector<Cell> adjacent_diag(Map const &map) const
+    {
+        std::vector<Cell> adj{adjacent(map)};
+        adj.push_back({x - 1, y - 1});
+        adj.push_back({x - 1, y + 1});
+        adj.push_back({x + 1, y - 1});
+        adj.push_back({x + 1, y + 1});
+        adj.erase(std::remove_if(adj.begin(), adj.end(), [map](Cell const &c)
+                                 { return !c.valid(map); }),
+                  adj.end());
+        return adj;
+    }
+
+    bool is_frontier(Map const &map) const
+    {
+        if (map.get(y, x) != -1)
+            return false;
+
+        std::vector<Cell> adj{adjacent_diag(map)};
+        bool adj_open{false};
+        for (auto &c : adj)
+        {
+            // Adjacent cell is occupied
+            if (map.get(c.y, c.x) >= PRIOR)
+                return false;
+
+            if (map.get(c.y, c.x) < PRIOR)
+                adj_open = true;
+        }
+
+        return adj_open;
+    }
+
+    bool valid(Map const &map) const
+    {
+        return x > 0 && y > 0 && x < map.width && y < map.height;
+    }
+};
+
+struct Frontier
+{
+    std::vector<Cell> cells{};
+};
 
 std::vector<Frontier> WFD(Point start, Map const &map)
 {
@@ -93,125 +218,3 @@ std::vector<Frontier> WFD(Point start, Map const &map)
 
     return result;
 }
-=======
-=======
->>>>>>> 70949e01107bdc407431d1dab316d46ab8db6e5c
-#include <algorithm>
-#include <numeric>
-#include <queue>
-
-std::ostream &operator<<(std::ostream &os, Map const &map)
-{
-    os << "Size: " << map.width << "x" << map.height << std::endl;
-    // TODO: Somehow prints unicode characters
-    for (size_t i{}; i < map.height; ++i)
-    {
-        for (size_t j{}; j < map.width; ++j)
-            os << map.matrix.at(i).at(j) << " ";
-        os << std::endl;
-    }
-    return os;
-}
-
-void Map::update(const OccupancyGrid::SharedPtr grid)
-{
-    // TODO: Maybe we can just always replace the entire map with grid
-    if (height == 0 || width == 0)
-    {
-        height = grid->info.height;
-        width = grid->info.width;
-        resolution = grid->info.resolution;
-        origin = grid->info.origin;
-        matrix = std::vector<std::vector<int8_t>>{height, std::vector<int8_t>{}};
-        for (size_t row{}; row < height; ++row)
-            std::copy(&grid->data[row * width], &grid->data[(row + 1) * width], std::back_inserter(matrix[row]));
-    }
-    else
-    {
-        resolution = grid->info.resolution;
-        origin = grid->info.origin;
-
-        if (height != grid->info.height)
-        {
-            height = grid->info.height;
-            matrix.resize(height);
-        }
-
-        if (width != grid->info.width)
-        {
-            width = grid->info.width;
-            for (size_t row{}; row < height; ++row)
-                matrix[row].resize(width);
-        }
-
-        for (size_t row{}; row < height; ++row)
-            for (size_t col{}; col < width; ++col)
-                matrix[row][col] = grid->data[row * width + col];
-    }
-}
-
-int8_t Map::at(int x, int y) const
-{
-    return matrix.at(y).at(x);
-}
-
-uint32_t Map::get_width() const
-{
-    return width;
-}
-
-uint32_t Map::get_height() const
-{
-    return height;
-}
-
-std::tuple<size_t, size_t> Map::index_from_point(Point pos) const
-{
-}
-
-Point Map::point_from_index(size_t x, size_t y) const
-{
-    return {};
-}
-
-Point Frontier::center()
-{
-    Point sum{std::accumulate(points.begin(), points.end(), Point{}, [](Point &p1, Point const &p2)
-                              { p1.x += p2.x; p1.y += p2.y; return p1; })};
-    sum.x /= points.size();
-    sum.y /= points.size();
-    return sum;
-}
-
-float Frontier::distance_to(Point point)
-{
-}
-
-bool Frontier::operator<(Frontier const &other) const
-{
-    return true;
-}
-
-Frontier Algorithm::pop()
-{
-}
-
-
-void Algorithm::update_map(const OccupancyGrid::SharedPtr grid)
-{
-    map.update(grid);
-
-    // TODO
-    // Frontier f{};
-    // f.points.push_back(Point{map.at(map.height() - 1, map.width() - 1)});
-    // frontiers.push(f);
-}
-
-size_t Algorithm::count()
-{
-    return frontiers.size();
-}
-<<<<<<< HEAD
->>>>>>> 70949e01107bdc407431d1dab316d46ab8db6e5c
-=======
->>>>>>> 70949e01107bdc407431d1dab316d46ab8db6e5c

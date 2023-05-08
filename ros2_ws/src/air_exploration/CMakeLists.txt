@@ -29,6 +29,12 @@ find_package(tf2_geometry_msgs REQUIRED)
 
 # find_package(irobot_create_msgs REQUIRED) # Drive to position
 
+find_package(tf2_ros REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+
+# find_package(irobot_create_msgs REQUIRED) # Drive to position
+
 # add include dirs
 include_directories(include)
 
