@@ -3,21 +3,24 @@
 #include <iostream>
 #include <future>
 
-#include "rclcpp/rclcpp.hpp"
-#include "rclcpp_action/rclcpp_action.hpp"
-#include "nav_msgs/msg/occupancy_grid.hpp"
-#include "nav2_msgs/action/navigate_to_pose.hpp"
-#include "tf2_ros/buffer.h"
-#include "tf2_ros/transform_listener.h"
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
+#include <nav_msgs/msg/occupancy_grid.hpp>
+#include <nav2_msgs/action/navigate_to_pose.hpp>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+
+#include <geometry_msgs/msg/point.hpp>
+#include <geometry_msgs/msg/point_stamped.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
+#include <ros2_kdb_msgs/srv/query_database.hpp>
+#include <air_simple_sim_msgs/msg/semantic_observation.hpp>
+
 #include "air_interfaces/action/explore.hpp"
 #include "air_interfaces/srv/get_position.hpp"
 #include "exploration_constants.hpp"
-#include "frontier.hpp"
-
-#include "geometry_msgs/msg/point.hpp"
-#include "geometry_msgs/msg/point_stamped.hpp"
-#include "geometry_msgs/msg/transform_stamped.hpp"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
 using namespace rclcpp;
 using namespace rclcpp_action;
@@ -26,13 +29,17 @@ using namespace std::placeholders;
 using ActionT = air_interfaces::action::Explore;
 using GoalHandleT = ServerGoalHandle<ActionT>;
 using PositionServiceT = air_interfaces::srv::GetPosition;
+using QueryServiceT = ros2_kdb_msgs::srv::QueryDatabase;
 
 using geometry_msgs::msg::Point;
 using geometry_msgs::msg::PointStamped;
 using geometry_msgs::msg::TransformStamped;
 
+// TODO: Replace with wilson
 using nav2_msgs::action::NavigateToPose;
 using nav_msgs::msg::OccupancyGrid;
+
+using air_simple_sim_msgs::msg::SemanticObservation;
 
 class ExplorationActionServer : public Node
 {
@@ -48,25 +55,40 @@ public:
             std::bind(&Self::handle_cancel, this, _1),
             std::bind(&Self::handle_accepted, this, _1));
 
+        // The current map occupancy grid
         map_sub = create_subscription<OccupancyGrid>("map", 10, std::bind(&Self::map_callback, this, _1));
 
-        driver = rclcpp_action::create_client<NavigateToPose>(this, "navigate_to_pose");
-
+        // The current odom position
         position_client = create_client<PositionServiceT>(POSITION_SERVICE_TOPIC);
-        // The tf_buffer and tf_listener needs to be kept alive and should be created in a constructor
+
+        // TODO: Replace with wilson
+        navigate_client = rclcpp_action::create_client<NavigateToPose>(this, "navigate_to_pose");
+
+        // Transforming
         tf_buffer = std::make_unique<tf2_ros::Buffer>(get_clock());
         tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
+
+        // Database and semantic observation
+        query_client = rclcpp::create_client<QueryServiceT>(QUERY_SERVICE_TOPIC);
+        semantic_sub = create_subscription<SemanticObservation>("semantic_observation", 10, std::bind(&Self::handle_observation, this, _1));
+
+        // Make sure all services are available
+        assert(position_client->wait_for_service(std::chrono::seconds(1)));
+        assert(query_client->wait_for_service(std::chrono::seconds(1)));
+        assert(navigate_client->wait_for_service(std::chrono::seconds(1)));
     }
 
 private:
     Server<ActionT>::SharedPtr server;
     Subscription<OccupancyGrid>::SharedPtr map_sub;
-    rclcpp_action::Client<NavigateToPose>::SharedPtr driver;
-    Algorithm algo;
+    rclcpp_action::Client<NavigateToPose>::SharedPtr navigate_client;
 
     rclcpp::Client<PositionServiceT>::SharedPtr position_client;
     std::unique_ptr<tf2_ros::Buffer> tf_buffer;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener;
+
+    rclcpp::Client<QueryServiceT>::SharedPtr query_client;
+    Subscription<SemanticObservation>::SharedPtr semantic_sub;
 
     /// @brief Handles incoming goal requests
     /// @param uuid
@@ -83,16 +105,21 @@ private:
     /// @return
     CancelResponse handle_cancel(const std::shared_ptr<GoalHandleT> goal_handle)
     {
+        // TODO: Maybe allow cancel
         RCLCPP_INFO(get_logger(), "Received request to cancel goal");
-        return CancelResponse::ACCEPT;
+        return CancelResponse::REJECT;
     }
 
     /// @brief Begins working on newly created goal
     /// @param goal_handle
     void handle_accepted(const std::shared_ptr<GoalHandleT> goal_handle)
     {
-        // TODO: Should keep track of threads and cancel goal if thread is still running
-        std::thread{std::bind(&Self::explore, this, _1), goal_handle}.detach();
+        // TODO: Check if already in database, in that case immediatly return success
+        if (false)
+            goal_handle->succeed(nullptr);
+        else
+            // TODO: Should keep track of threads and cancel goal if thread is still running
+            std::thread{std::bind(&Self::explore, this, _1), goal_handle}.detach();
     }
 
     /// @brief Updates the occupation grid map
@@ -109,18 +136,9 @@ private:
                 Point pos{future.get()->point};
                 auto frontiers{algo.compute_frontiers(pos)};
             });
-
-        // future_result.wait();
-        // Point pos{future_result.get()->point};
-        // RCLCPP_INFO(get_logger(), "Current position: x: %f, y: %f", pos.x, pos.y);
-        // }
-        // else
-        // {
-        //     RCLCPP_ERROR(get_logger(), "Failed to get current position");
-        // }
     }
 
-    // Go to the nearest frontier
+    // Keep exploring frontiers until either target found or no more frontiers
     void explore(const std::shared_ptr<GoalHandleT> goal_handle)
     {
         if (algo.count() == 0)
@@ -142,7 +160,7 @@ private:
         send_goal_options.feedback_callback = std::bind(&Self::handle_drive_feedback, this, _1, _2);
         send_goal_options.result_callback = std::bind(&Self::handle_drive_result, this, _1);
 
-        driver->async_send_goal(msg, send_goal_options);
+        navigate_client->async_send_goal(msg, send_goal_options);
         RCLCPP_INFO(get_logger(), "Moving to frontier at x: %f, y: %f", p.x, p.y);
     }
 
@@ -183,6 +201,42 @@ private:
             RCLCPP_ERROR(get_logger(), "Unknown result code");
             return;
         }
+    }
+
+    // TODO: This is copied from the lab
+    // Maybe just keep track locally?
+    void handle_observation(const SemanticObservation::SharedPtr msg)
+    {
+        RCLCPP_INFO(get_logger(), "Got new observation!");
+        auto request{std::make_shared<QueryServiceT::Request>()};
+        request->graphname = GRAPHNAME;
+
+        std::ostringstream os{};
+        os << "PREFIX gis: <http://www.ida.liu.se/~TDDE05/gis>" << std::endl
+           << "PREFIX properties: <http://www.ida.liu.se/~TDDE05/properties>" << std::endl
+           << "SELECT ?x ?y WHERE { <" << msg->uuid.c_str() << "> a <" << msg->klass.c_str() << "> ;" << std::endl
+           << "properties:location [ gis:x ?x; gis:y ?y ] . }" << std::endl;
+        request->query = os.str();
+
+        RCLCPP_INFO(get_logger(), "Query: %s", request->query.c_str());
+        auto result = query_client->async_send_request(
+            request,
+            [this, msg](rclcpp::Client<QueryServiceT>::SharedFuture future)
+            {
+                RCLCPP_INFO(this->m_node->get_logger(), "%d\n",
+                            future.get()->success);
+
+                QJsonDocument doc = QJsonDocument::fromJson(
+                    QByteArray::fromStdString(future.get()->result));
+
+                RCLCPP_INFO(get_logger(), "Json: %s", doc.toJson().toStdString().c_str());
+                if (doc.object()["results"].toObject()["bindings"].toArray().size() ==
+                    0)
+                {
+                    // TODO
+                    RCLCPP_INFO("Doesn't exist!");
+                }
+            });
     }
 };
 

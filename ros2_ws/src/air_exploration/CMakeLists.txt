@@ -13,7 +13,10 @@ find_package(air_interfaces REQUIRED) # GetPosition
 find_package(nav2_msgs REQUIRED) # Odometry
 find_package(nav_msgs REQUIRED) # Slam toolbox
 find_package(geometry_msgs REQUIRED) # Point
+find_package(ros2_kdb_msgs REQUIRED) # Database
+find_package(air_simple_sim_msgs REQUIRED) # Semantic observation
 
+# Transformation
 find_package(tf2_ros REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
@@ -38,7 +41,7 @@ ament_target_dependencies(
 )
 
 # exploration_server
-add_executable(exploration_server src/exploration_server src/frontier src/driver) # Add new executable
+add_executable(exploration_server src/exploration_server src/frontier) # Add new executable
 target_include_directories(exploration_server PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
@@ -53,6 +56,8 @@ ament_target_dependencies(
   "tf2_ros"
   "tf2"
   "tf2_geometry_msgs"
+  "ros2_kdb_msgs" 
+  "air_simple_sim_msgs"
   # "irobot_create_msgs"
 )
 
