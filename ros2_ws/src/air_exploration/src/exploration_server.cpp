@@ -13,6 +13,7 @@
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include <ros2_kdb_msgs/srv/query_database.hpp>
@@ -21,7 +22,7 @@
 #include "air_interfaces/action/explore.hpp"
 #include "air_interfaces/srv/get_position.hpp"
 #include "exploration_constants.hpp"
-#include "frontier.hpp"
+#include "../include/frontier.hpp"
 
 #include "geometry_msgs/msg/point.hpp"
 #include "geometry_msgs/msg/point_stamped.hpp"
@@ -34,12 +35,12 @@ using namespace std::placeholders;
 
 using ActionT = air_interfaces::action::Explore;
 using GoalHandleT = ServerGoalHandle<ActionT>;
-using PositionServiceT = air_interfaces::srv::GetPosition;
 using QueryServiceT = ros2_kdb_msgs::srv::QueryDatabase;
 
 using geometry_msgs::msg::Point;
 using geometry_msgs::msg::PointStamped;
 using geometry_msgs::msg::TransformStamped;
+using nav_msgs::msg::Odometry;
 
 // TODO: Replace with wilson
 using nav2_msgs::action::NavigateToPose;
@@ -52,7 +53,7 @@ class ExplorationActionServer : public Node
 public:
     using Self = ExplorationActionServer;
 
-    ExplorationActionServer() : Node{EXPLORATION_SERVER_NODE}, algo{}
+    ExplorationActionServer() : Node{EXPLORATION_SERVER_NODE}
     {
         server = create_server<ActionT>(
             this,
@@ -62,10 +63,8 @@ public:
             std::bind(&Self::handle_accepted, this, _1));
 
         // The current map occupancy grid
-        map_sub = create_subscription<OccupancyGrid>("map", 10, std::bind(&Self::map_callback, this, _1));
-
-        // The current odom position
-        position_client = create_client<PositionServiceT>(POSITION_SERVICE_TOPIC);
+        map_sub = create_subscription<OccupancyGrid>("map", 10, std::bind(&Self::handle_map, this, _1));
+        odom_sub = create_subscription<Odometry>("odom", 10, std::bind(&Self::handle_odom, this, _1));
 
         // TODO: Replace with wilson
         navigate_client = rclcpp_action::create_client<NavigateToPose>(this, "navigate_to_pose");
@@ -75,26 +74,29 @@ public:
         tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
 
         // Database and semantic observation
-        query_client = rclcpp::create_client<QueryServiceT>(QUERY_SERVICE_TOPIC);
+        query_client = create_client<QueryServiceT>(QUERY_SERVICE_TOPIC);
         semantic_sub = create_subscription<SemanticObservation>("semantic_observation", 10, std::bind(&Self::handle_observation, this, _1));
 
         // Make sure all services are available
-        assert(position_client->wait_for_service(std::chrono::seconds(1)));
         assert(query_client->wait_for_service(std::chrono::seconds(1)));
-        assert(navigate_client->wait_for_service(std::chrono::seconds(1)));
+        // assert(navigate_client->wait_for_service(std::chrono::seconds(1)));
     }
 
 private:
-    Server<ActionT>::SharedPtr server;
-    Subscription<OccupancyGrid>::SharedPtr map_sub;
-    rclcpp_action::Client<NavigateToPose>::SharedPtr navigate_client;
+    Server<ActionT>::SharedPtr server{};
 
-    rclcpp::Client<PositionServiceT>::SharedPtr position_client;
-    std::unique_ptr<tf2_ros::Buffer> tf_buffer;
-    std::shared_ptr<tf2_ros::TransformListener> tf_listener;
+    Subscription<OccupancyGrid>::SharedPtr map_sub{};
+    Subscription<Odometry>::SharedPtr odom_sub{};
+    OccupancyGrid::SharedPtr map{};
+    Point pos{};
 
-    rclcpp::Client<QueryServiceT>::SharedPtr query_client;
-    Subscription<SemanticObservation>::SharedPtr semantic_sub;
+    rclcpp_action::Client<NavigateToPose>::SharedPtr navigate_client{};
+
+    std::unique_ptr<tf2_ros::Buffer> tf_buffer{};
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener{};
+
+    rclcpp::Client<QueryServiceT>::SharedPtr query_client{};
+    Subscription<SemanticObservation>::SharedPtr semantic_sub{};
 
     /// @brief Handles incoming goal requests
     /// @param uuid
@@ -130,32 +132,29 @@ private:
 
     /// @brief Updates the occupation grid map
     /// @param msg
-    void map_callback(const OccupancyGrid::SharedPtr msg)
+    void handle_map(const OccupancyGrid::SharedPtr msg)
     {
-        algo.update_map(msg);
+        map = msg;
         RCLCPP_INFO(get_logger(), "Updated map");
+    }
 
-        position_client->async_send_request(
-            std::make_shared<PositionServiceT::Request>(),
-            [this](rclcpp::Client<PositionServiceT>::SharedFuture future) -> void
-            {
-                Point pos{future.get()->point};
-                auto frontiers{algo.compute_frontiers(pos)};
-            });
+    void handle_odom(const Odometry::SharedPtr msg)
+    {
+        pos = msg->pose.pose.position;
+        RCLCPP_INFO_STREAM(get_logger(), "Received position x: " << pos.x << " y: " << pos.y << " z: " << pos.z);
     }
 
     // Keep exploring frontiers until either target found or no more frontiers
     void explore(const std::shared_ptr<GoalHandleT> goal_handle)
     {
-        if (algo.count() == 0)
-        {
-            RCLCPP_INFO(get_logger(), "No frontiers left to explore!\n");
-            goal_handle->abort(std::make_shared<ActionT::Result>());
-            return;
-        }
+        assert(map != nullptr);
 
-        Frontier next{algo.pop()};
-        Point p{next.center()};
+        // TODO: Sort them
+        std::vector<Frontier> frontiers{WFD(pos, Map{map})};
+        Frontier cur{frontiers.front()};
+        Point p{cur.centroid};
+
+        // Go to the frontier using wilsons service
 
         NavigateToPose::Goal msg{};
         msg.pose.pose.position = p;
@@ -175,19 +174,15 @@ private:
     {
         auto todo = future.get();
         if (!todo)
-        {
             RCLCPP_ERROR(get_logger(), "Goal was rejected by server");
-        }
         else
-        {
             RCLCPP_INFO(get_logger(), "Goal accepted by server, waiting for result");
-        }
     }
 
     void handle_drive_feedback(rclcpp_action::ClientGoalHandle<NavigateToPose>::SharedPtr goal,
                                const std::shared_ptr<const NavigateToPose::Feedback> feedback)
     {
-        RCLCPP_INFO(get_logger(), "Remaining distance to goal: %f (%fs)", feedback->distance_remaining, feedback->estimated_time_remaining.sec);
+        RCLCPP_INFO(get_logger(), "Remaining distance to goal: %f (%ds)", feedback->distance_remaining, feedback->estimated_time_remaining.sec);
     }
 
     void handle_drive_result(rclcpp_action::ClientGoalHandle<NavigateToPose>::WrappedResult const &result)
@@ -229,19 +224,19 @@ private:
             request,
             [this, msg](rclcpp::Client<QueryServiceT>::SharedFuture future)
             {
-                RCLCPP_INFO(this->m_node->get_logger(), "%d\n",
+                RCLCPP_INFO(get_logger(), "%d\n",
                             future.get()->success);
 
-                QJsonDocument doc = QJsonDocument::fromJson(
-                    QByteArray::fromStdString(future.get()->result));
+                // QJsonDocument doc = QJsonDocument::fromJson(
+                //     QByteArray::fromStdString(future.get()->result));
 
-                RCLCPP_INFO(get_logger(), "Json: %s", doc.toJson().toStdString().c_str());
-                if (doc.object()["results"].toObject()["bindings"].toArray().size() ==
-                    0)
-                {
-                    // TODO
-                    RCLCPP_INFO("Doesn't exist!");
-                }
+                // RCLCPP_INFO(get_logger(), "Json: %s", doc.toJson().toStdString().c_str());
+                // if (doc.object()["results"].toObject()["bindings"].toArray().size() ==
+                //     0)
+                // {
+                //     // TODO
+                //     RCLCPP_INFO(get_logger(), "Doesn't exist!");
+                // }
             });
     }
 };
@@ -252,32 +247,3 @@ int main(int argc, char const *argv[])
     spin(std::make_shared<ExplorationActionServer>());
     shutdown();
 }
-
-/*
-
-                // RCLCPP_INFO(get_logger(), "Point: (%f, %f)", pos.x, pos.y);
-
-                PointStamped odom_pos{};
-                odom_pos.header.frame_id = "odom";
-                odom_pos.point = pos;
-
-                try
-                {
-                    // Get the transform from odom to map
-                    // TransformStamped transform{tf_buffer->lookupTransform("map", "odom", Time(0))};
-
-                    // Transform the point from odom to map
-                    // map_pos.header.frame_id = "map";
-                    // map_pos.header.stamp = Time(0);
-                    // map_pos.point = odom_pos;
-                    // tf2::doTransform(map_pos, map_pos, transform);
-                    PointStamped map_pos{};
-                    tf_buffer->transform(odom_pos, map_pos, "map");
-                    RCLCPP_INFO(get_logger(), "Transformed odom (%f, %f) to map (%f, %f)", pos.x, pos.y, map_pos.point.x, map_pos.point.y);
-                }
-                catch (const tf2::TransformException &ex)
-                {
-                    RCLCPP_ERROR(get_logger(), "Could not transform %s to %s: %s", "odom", "map", ex.what());
-                    return;
-                }
-*/

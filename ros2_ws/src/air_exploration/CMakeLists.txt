@@ -68,6 +68,7 @@ ament_target_dependencies(
   "tf2_ros"
   "tf2"
   "tf2_geometry_msgs"
+  "geometry_msgs"
   "ros2_kdb_msgs" 
   "air_simple_sim_msgs"
   # "irobot_create_msgs"

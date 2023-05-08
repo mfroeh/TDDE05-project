@@ -44,8 +44,8 @@ struct Map
         double dy{p.y - origin.position.y};
 
         // Convert distance to cells
-        size_t cell_x{std::round(dx / resolution)};
-        size_t cell_y{std::round(dy / resolution)};
+        size_t cell_x{static_cast<size_t>(std::floor(dx / resolution))};
+        size_t cell_y{static_cast<size_t>(std::floor(dy / resolution))};
 
         return cell_y * width + cell_x;
     }
@@ -128,6 +128,7 @@ struct Cell
 struct Frontier
 {
     std::vector<Cell> cells{};
+    Point centroid{};
 };
 
 std::vector<Frontier> WFD(Point start, Map const &map);
