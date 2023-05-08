@@ -21,6 +21,12 @@
 #include "air_interfaces/action/explore.hpp"
 #include "air_interfaces/srv/get_position.hpp"
 #include "exploration_constants.hpp"
+#include "frontier.hpp"
+
+#include "geometry_msgs/msg/point.hpp"
+#include "geometry_msgs/msg/point_stamped.hpp"
+#include "geometry_msgs/msg/transform_stamped.hpp"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
 using namespace rclcpp;
 using namespace rclcpp_action;
