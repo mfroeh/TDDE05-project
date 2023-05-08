@@ -14,6 +14,9 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/Explore.action"
+  "action/Goals.action"
+  "action/Navigate.action"
+  "msg/Goal.msg"
   "srv/GetPosition.srv" DEPENDENCIES geometry_msgs
 )
 

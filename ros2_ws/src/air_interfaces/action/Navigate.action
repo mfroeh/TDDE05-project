@@ -1,12 +1,11 @@
-# /explore
+# /navigate_to
 
 # Request
-string kind
-string name
+geometry_msgs/Point position
 ---
 # Result
-geometry_msgs/Point position
 bool success
+geometry_msgs/Point position
 ---
 # Feedback
 geometry_msgs/Point position

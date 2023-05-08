@@ -1,0 +1,9 @@
+# /goals_request
+
+# Request
+Goal[] goals
+---
+# Result
+bool success
+---
+# Feedback
