@@ -3,9 +3,9 @@
 #include <queue>
 #include <algorithm>
 
-std::vector<Frontier> WFD(Point start, Map const &map)
+std::vector<CellFrontier> WFD(Point start, Map const &map)
 {
-    std::vector<Frontier> result{};
+    std::vector<CellFrontier> result{};
 
     enum WFDState
     {
@@ -37,7 +37,7 @@ std::vector<Frontier> WFD(Point start, Map const &map)
         if (p.is_frontier(map))
         {
             queue_f = {};
-            Frontier new_frontier{};
+            CellFrontier new_frontier{};
             queue_f.push(p);
             states[p.to_index(map)] = FRONTIER_OPEN_LIST;
 

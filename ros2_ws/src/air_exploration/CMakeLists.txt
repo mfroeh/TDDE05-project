@@ -5,6 +5,14 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+include(FetchContent)
+FetchContent_Declare(
+  nlohmann_json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG        v3.10.4
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -21,8 +29,6 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
-# find_package(irobot_create_msgs REQUIRED) # Drive to position
-
 find_package(tf2_ros REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
@@ -32,16 +38,8 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
-
-# find_package(irobot_create_msgs REQUIRED) # Drive to position
-
-include(FetchContent)
-FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
-FetchContent_MakeAvailable(json)
 
 # add include dirs
-include_directories(include)
-
 # position_service
 add_executable(position_service src/position_service.cpp)
 target_include_directories(position_service PUBLIC
@@ -75,9 +73,8 @@ ament_target_dependencies(
   "geometry_msgs"
   "ros2_kdb_msgs" 
   "air_simple_sim_msgs"
-  "nlohmann_json::nlohmann_json"
-  # "irobot_create_msgs"
 )
+target_link_libraries(exploration_server nlohmann_json)
 
 install(TARGETS position_service exploration_server
   DESTINATION lib/${PROJECT_NAME})

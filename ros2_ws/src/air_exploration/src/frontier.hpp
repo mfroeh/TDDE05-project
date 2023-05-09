@@ -53,7 +53,8 @@ struct Map
     Point point_from_index(size_t index) const
     {
         Point p{};
-        // TODO
+        p.x = width * resolution + resolution / 2;
+        p.y = height * resolution + resolution / 2;
         return p;
     }
 
@@ -125,10 +126,27 @@ struct Cell
     }
 };
 
-struct Frontier
+struct CellFrontier
 {
     std::vector<Cell> cells{};
+};
+
+struct Frontier
+{
+    Frontier(CellFrontier &&cf, Map const &map)
+    {
+        for (auto &c : cf.cells)
+            points.push_back(map.point_from_index(c.to_index(map)));
+
+        Point sum{std::accumulate(points.begin(), points.end(), Point{}, [](Point &p1, Point const &p2)
+                                  { p1.x += p2.x; p1.y += p2.y; return p1; })};
+        sum.x /= points.size();
+        sum.y /= points.size();
+        centroid = sum;
+    }
+
+    std::vector<Point> points{};
     Point centroid{};
 };
 
-std::vector<Frontier> WFD(Point start, Map const &map);
+std::vector<CellFrontier> WFD(Point start, Map const &map);

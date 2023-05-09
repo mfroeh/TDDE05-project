@@ -23,7 +23,7 @@
 #include "air_interfaces/action/explore.hpp"
 #include "air_interfaces/srv/get_position.hpp"
 #include "exploration_constants.hpp"
-#include "../include/frontier.hpp"
+#include "frontier.hpp"
 
 #include "geometry_msgs/msg/point.hpp"
 #include "geometry_msgs/msg/point_stamped.hpp"
@@ -81,6 +81,7 @@ public:
         // Make sure all services are available
         assert(query_client->wait_for_service(std::chrono::seconds(1)));
         // assert(navigate_client->wait_for_service(std::chrono::seconds(1)));
+        // exists_in_database("", "");
     }
 
 private:
@@ -100,18 +101,18 @@ private:
     Subscription<SemanticObservation>::SharedPtr semantic_sub{};
 
     /// @brief Handles incoming goal requests
-    /// @param uuid
-    /// @param goal
-    /// @return
+    /// @param uuid The unique identifier of the goal
+    /// @param goal The goal request
+    /// @return Whether the goal should be accepted and executed
     GoalResponse handle_goal(const GoalUUID &uuid, std::shared_ptr<const ActionT::Goal> goal)
     {
-        RCLCPP_INFO(get_logger(), "Received goal request");
+        RCLCPP_INFO(get_logger(), "Received goal request for %s (%s)", goal->name.c_str(), goal->kind.c_str());
         return GoalResponse::ACCEPT_AND_EXECUTE;
     }
 
-    /// @brief Cancels existing goals
-    /// @param goal_handle
-    /// @return
+    /// @brief Cancels the goal
+    /// @param goal_handle The goal handle to cancel
+    /// @return Whether the goal was successfully cancelled
     CancelResponse handle_cancel(const std::shared_ptr<GoalHandleT> goal_handle)
     {
         // TODO: Maybe allow cancel
@@ -120,54 +121,69 @@ private:
     }
 
     /// @brief Begins working on newly created goal
-    /// @param goal_handle
+    /// @param goal_handle The goal handle to work on
     void handle_accepted(const std::shared_ptr<GoalHandleT> goal_handle)
     {
-        // TODO: Check if already in database, in that case immediatly return success
-        if (false)
-            goal_handle->succeed(nullptr);
+        Point p{};
+        if (exists_in_database(goal_handle->get_goal()->kind, goal_handle->get_goal()->name, p))
+        {
+            auto result{std::make_shared<ActionT::Result>()};
+            result->success = true;
+            result->position = p;
+            goal_handle->succeed(result);
+        }
         else
+        {
             // TODO: Should keep track of threads and cancel goal if thread is still running
             std::thread{std::bind(&Self::explore, this, _1), goal_handle}.detach();
+        }
     }
 
     /// @brief Updates the occupation grid map
-    /// @param msg
+    /// @param msg The occupancy grid message
     void handle_map(const OccupancyGrid::SharedPtr msg)
     {
         map = msg;
         RCLCPP_INFO(get_logger(), "Updated map");
     }
 
+    /// @brief Updates the current position
+    /// @param msg The odometry message
     void handle_odom(const Odometry::SharedPtr msg)
     {
         pos = msg->pose.pose.position;
         RCLCPP_INFO_STREAM(get_logger(), "Received position x: " << pos.x << " y: " << pos.y << " z: " << pos.z);
     }
 
-    // Keep exploring frontiers until either target found or no more frontiers
+    /// @brief Keeps exploring frontiers until either target found or there are no more frontiers
+    /// @param goal_handle The goal handle to work on
     void explore(const std::shared_ptr<GoalHandleT> goal_handle)
     {
         assert(map != nullptr);
 
-        // TODO: Sort them
-        std::vector<Frontier> frontiers{WFD(pos, Map{map})};
-        Frontier cur{frontiers.front()};
-        Point p{cur.centroid};
+        // TODO: Use a member variables which is set by the result callback (checks for person in database)
+        bool found{};
+        while (!found)
+        {
+            // TODO: Sort them
+            std::vector<CellFrontier> frontiers{WFD(pos, Map{map})};
+            CellFrontier cf{frontiers.front()};
+            Frontier cur{std::move(cf), Map{map}};
+            Point p{cur.centroid};
 
-        // Go to the frontier using wilsons service
+            // TODO: Go to the frontier using wilsons service
+            NavigateToPose::Goal msg{};
+            msg.pose.pose.position = p;
+            msg.pose.header.frame_id = "map";
 
-        NavigateToPose::Goal msg{};
-        msg.pose.pose.position = p;
-        msg.pose.header.frame_id = "map";
+            rclcpp_action::Client<NavigateToPose>::SendGoalOptions send_goal_options{};
+            send_goal_options.goal_response_callback = std::bind(&Self::handle_drive_response, this, _1);
+            send_goal_options.feedback_callback = std::bind(&Self::handle_drive_feedback, this, _1, _2);
+            send_goal_options.result_callback = std::bind(&Self::handle_drive_result, this, _1);
 
-        rclcpp_action::Client<NavigateToPose>::SendGoalOptions send_goal_options{};
-        send_goal_options.goal_response_callback = std::bind(&Self::handle_drive_response, this, _1);
-        send_goal_options.feedback_callback = std::bind(&Self::handle_drive_feedback, this, _1, _2);
-        send_goal_options.result_callback = std::bind(&Self::handle_drive_result, this, _1);
-
-        navigate_client->async_send_goal(msg, send_goal_options);
-        RCLCPP_INFO(get_logger(), "Moving to frontier at x: %f, y: %f", p.x, p.y);
+            navigate_client->async_send_goal(msg, send_goal_options);
+            RCLCPP_INFO(get_logger(), "Moving to frontier at x: %f, y: %f", p.x, p.y);
+        }
     }
 
     void handle_drive_response(
@@ -241,38 +257,40 @@ private:
             });
     }
 
-    bool check_object_database(std::string kind, std::string name)
+    /// @brief Checks if an object exists in the database
+    /// @param kind The kind of the object
+    /// @param name The name of the object
+    /// @param p The point to store the location in
+    /// @return True if it exists
+    bool exists_in_database(std::string kind, std::string name, Point &p)
     {
-        RCLCPP_INFO(get_logger(), "Got new observation!");
-        auto request{std::make_shared<QueryServiceT::Request>()};
+        RCLCPP_INFO(this->get_logger(), "Starting query\n");
+        auto request{
+            std::make_shared<QueryServiceT::Request>()};
         request->graphname = GRAPHNAME;
 
         std::ostringstream os{};
         os << "PREFIX gis: <http://www.ida.liu.se/~TDDE05/gis>" << std::endl
            << "PREFIX properties: <http://www.ida.liu.se/~TDDE05/properties>" << std::endl
-           << "SELECT ?x ?y WHERE { <" << msg->uuid.c_str() << "> a <" << msg->klass.c_str() << "> ;" << std::endl
+           << "SELECT ?obj_id ?class ?x ?y WHERE { ?obj_id a ?class ;" << std::endl
            << "properties:location [ gis:x ?x; gis:y ?y ] . }" << std::endl;
+
         request->query = os.str();
+        request->format = "json";
 
-        RCLCPP_INFO(get_logger(), "Query: %s", request->query.c_str());
-        auto result = query_client->async_send_request(
-            request,
-            [this, msg](rclcpp::Client<QueryServiceT>::SharedFuture future)
-            {
-                RCLCPP_INFO(get_logger(), "%d\n",
-                            future.get()->success);
+        auto future_result = query_client->async_send_request(request);
+        spin_until_future_complete(shared_from_this(), future_result);
 
-                QJsonDocument doc = QJsonDocument::fromJson(
-                    QByteArray::fromStdString(future.get()->result));
+        if (!future_result.get()->success)
+        {
+            RCLCPP_ERROR(get_logger(), "Query was unsuccessful");
+            return false;
+        }
 
-                RCLCPP_INFO(get_logger(), "Json: %s", doc.toJson().toStdString().c_str());
-                // if (doc.object()["results"].toObject()["bindings"].toArray().size() ==
-                //     0)
-                // {
-                //     // TODO
-                //     RCLCPP_INFO(get_logger(), "Doesn't exist!");
-                // }
-            });
+        RCLCPP_INFO(get_logger(), "%s", future_result.get()->result.c_str());
+        // TODO: Set point
+
+        return false;
     }
 };
 
