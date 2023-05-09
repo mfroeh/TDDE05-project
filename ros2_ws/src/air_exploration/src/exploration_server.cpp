@@ -81,7 +81,8 @@ public:
         // Make sure all services are available
         assert(query_client->wait_for_service(std::chrono::seconds(1)));
         // assert(navigate_client->wait_for_service(std::chrono::seconds(1)));
-        // exists_in_database("", "");
+        // Point p;
+        // exists_in_database("", "", &p);
     }
 
 private:
@@ -279,7 +280,8 @@ private:
         request->format = "json";
 
         auto future_result = query_client->async_send_request(request);
-        spin_until_future_complete(shared_from_this(), future_result);
+        Node::SharedPtr node{Node::make_shared("query_client")};
+        spin_until_future_complete(node, future_result);
 
         if (!future_result.get()->success)
         {
