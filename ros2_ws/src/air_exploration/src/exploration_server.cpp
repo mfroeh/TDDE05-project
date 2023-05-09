@@ -125,19 +125,24 @@ private:
     /// @param goal_handle The goal handle to work on
     void handle_accepted(const std::shared_ptr<GoalHandleT> goal_handle)
     {
-        Point p{};
-        if (exists_in_database(goal_handle->get_goal()->kind, goal_handle->get_goal()->name, p))
-        {
-            auto result{std::make_shared<ActionT::Result>()};
-            result->success = true;
-            result->position = p;
-            goal_handle->succeed(result);
-        }
-        else
-        {
-            // TODO: Should keep track of threads and cancel goal if thread is still running
-            std::thread{std::bind(&Self::explore, this, _1), goal_handle}.detach();
-        }
+        check_exists_database(
+            goal_handle->get_goal()->kind,
+            goal_handle->get_goal()->name,
+            [&](bool exists, Point p)
+            {
+                if (exists)
+                {
+                    auto result{std::make_shared<ActionT::Result>()};
+                    result->success = true;
+                    result->position = p;
+                    goal_handle->succeed(result);
+                }
+                else
+                {
+                    // TODO: Should keep track of threads and cancel goal if thread is still running
+                    std::thread{std::bind(&Self::explore, this, _1), goal_handle}.detach();
+                }
+            });
     }
 
     /// @brief Updates the occupation grid map
@@ -261,9 +266,9 @@ private:
     /// @brief Checks if an object exists in the database
     /// @param kind The kind of the object
     /// @param name The name of the object
-    /// @param p The point to store the location in
-    /// @return True if it exists
-    bool exists_in_database(std::string kind, std::string name, Point &p)
+    /// @param callback The callback to call with the result
+    template <typename CallbackT>
+    void check_exists_database(std::string kind, std::string name, CallbackT callback)
     {
         RCLCPP_INFO(this->get_logger(), "Starting query\n");
         auto request{
@@ -279,20 +284,25 @@ private:
         request->query = os.str();
         request->format = "json";
 
-        auto future_result = query_client->async_send_request(request);
-        Node::SharedPtr node{Node::make_shared("query_client")};
-        spin_until_future_complete(node, future_result);
-
-        if (!future_result.get()->success)
-        {
-            RCLCPP_ERROR(get_logger(), "Query was unsuccessful");
-            return false;
-        }
-
-        RCLCPP_INFO(get_logger(), "%s", future_result.get()->result.c_str());
-        // TODO: Set point
-
-        return false;
+        query_client->async_send_request(
+            request,
+            [this, callback](
+                rclcpp::Client<QueryServiceT>::SharedFuture future)
+            {
+                if (!future.get()->success)
+                {
+                    RCLCPP_ERROR(get_logger(), "Query was unsuccessful");
+                    callback(false, Point{});
+                    return;
+                }
+                else
+                {
+                    RCLCPP_INFO(get_logger(), "%s", future.get()->result.c_str());
+                    // TODO: Set point
+                    Point p{};
+                    callback(true, p);
+                }
+            });
     }
 };
 
