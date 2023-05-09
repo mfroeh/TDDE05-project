@@ -2,6 +2,7 @@
 #include <chrono>
 #include <iostream>
 #include <future>
+#include <string>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
@@ -231,6 +232,40 @@ private:
                 //     QByteArray::fromStdString(future.get()->result));
 
                 // RCLCPP_INFO(get_logger(), "Json: %s", doc.toJson().toStdString().c_str());
+                // if (doc.object()["results"].toObject()["bindings"].toArray().size() ==
+                //     0)
+                // {
+                //     // TODO
+                //     RCLCPP_INFO(get_logger(), "Doesn't exist!");
+                // }
+            });
+    }
+
+    bool check_object_database(std::string kind, std::string name)
+    {
+        RCLCPP_INFO(get_logger(), "Got new observation!");
+        auto request{std::make_shared<QueryServiceT::Request>()};
+        request->graphname = GRAPHNAME;
+
+        std::ostringstream os{};
+        os << "PREFIX gis: <http://www.ida.liu.se/~TDDE05/gis>" << std::endl
+           << "PREFIX properties: <http://www.ida.liu.se/~TDDE05/properties>" << std::endl
+           << "SELECT ?x ?y WHERE { <" << msg->uuid.c_str() << "> a <" << msg->klass.c_str() << "> ;" << std::endl
+           << "properties:location [ gis:x ?x; gis:y ?y ] . }" << std::endl;
+        request->query = os.str();
+
+        RCLCPP_INFO(get_logger(), "Query: %s", request->query.c_str());
+        auto result = query_client->async_send_request(
+            request,
+            [this, msg](rclcpp::Client<QueryServiceT>::SharedFuture future)
+            {
+                RCLCPP_INFO(get_logger(), "%d\n",
+                            future.get()->success);
+
+                QJsonDocument doc = QJsonDocument::fromJson(
+                    QByteArray::fromStdString(future.get()->result));
+
+                RCLCPP_INFO(get_logger(), "Json: %s", doc.toJson().toStdString().c_str());
                 // if (doc.object()["results"].toObject()["bindings"].toArray().size() ==
                 //     0)
                 // {

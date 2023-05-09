@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.11)
 project(air_exploration)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -34,6 +34,10 @@ find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
 # find_package(irobot_create_msgs REQUIRED) # Drive to position
+
+include(FetchContent)
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
+FetchContent_MakeAvailable(json)
 
 # add include dirs
 include_directories(include)
@@ -71,6 +75,7 @@ ament_target_dependencies(
   "geometry_msgs"
   "ros2_kdb_msgs" 
   "air_simple_sim_msgs"
+  "nlohmann_json::nlohmann_json"
   # "irobot_create_msgs"
 )
 

@@ -33,3 +33,11 @@ stuff "bash tdde05-start\015"
 screen 5
 title "Other II"
 stuff "bash tdde05-start\015"
+
+screen 6
+title "Insert objects into database" 
+stuff "ros2 run air_simple_sim generate_rdf office_1; ros2 service call /kdb_server/insert_triples  ros2_kdb_msgs/srv/InsertTriples \"\ngraphname: 'semanticobject'\nformat: 'ttl'\ncontent: '`ros2 run air_simple_sim generate_rdf office_1`'\""
+
+screen 7
+title "launch database server"
+stuff "start-tdde05; ros2 run ros2_kdb server\015" #rm -rf $HOME/.lrs_kdb/stores/
