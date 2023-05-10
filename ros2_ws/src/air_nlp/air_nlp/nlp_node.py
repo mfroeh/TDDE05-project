@@ -1,29 +1,44 @@
 import rclpy
-from .predict import predict
+from .predict import predict, get_args, load_model, get_device
 
 from rclpy.node import Node
 from std_msgs.msg import String
 
+from air_interfaces import Destination, Goal, Goals
 
 class NlpNode(Node):
 
     def __init__(self):
         super().__init__('nlp_node')
+
+        model_dir = "./airproject_model/"
+        self.args = get_args(model_dir)
+        self.device = get_device()
+        self.model = load_model(model_dir, self.args, self.device)
+
         self.subscription = self.create_subscription(
             String,
             '/input_prompt',
             self.receive_prompt,
             10)
-        self.subscription
 
         self.get_logger().info('Initialization Completed')
 
     def receive_prompt(self, prompt):
-        self.get_logger().info('I heard "%s"' % prompt.data)
-        self.get_logger().info('I think "%s"' % self.recognize_intent(prompt))
+        self.get_logger().info('Received prompt: "%s"' % prompt.data)
 
-    def recognize_intent(self, prompt):
-        self.get_logger().info(predict("./airproject_model", prompt))
+        (intent, slots) = predict(prompt.data, self.model, self.args, self.device)
+
+        self.get_logger().info('The intent is: "%s"' % intent)
+
+        for slot in slots:
+            self.get_logger().info("{} ".format(slot))
+
+    def generate_goals(self, slots):
+        if 'B-goal.goto' in slots:
+            self.get_logger().info("Goto")
+
+
 
 
 def main(args=None):

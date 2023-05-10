@@ -62,6 +62,8 @@ def convert_input_line_to_tensor_dataset(line,
 
     tokens = []
     slot_label_mask = []
+    line = line.strip(" .?,;")
+    line = line.split()
     for word in line:
         word_tokens = tokenizer.tokenize(word)
         if not word_tokens:
@@ -116,11 +118,8 @@ def convert_input_line_to_tensor_dataset(line,
     return dataset
 
 
-def predict(model_dir, line, batch_size=32):
+def predict(line, model, args, device, batch_size=32):
     # load model and args
-    args = get_args(model_dir)
-    device = get_device()
-    model = load_model(model_dir, args, device)
     logger.info(args)
 
     intent_label_lst = get_intent_labels(args)
@@ -188,7 +187,7 @@ def predict(model_dir, line, batch_size=32):
                 slot_preds_list[i].append(slot_label_map[slot_preds[i][j]])
 
     logger.info("Prediction Done!")
-    return (intent_preds[0], slot_preds)
+    return (intent_label_lst[intent_preds[0]], slot_preds_list[0])
 
 
 if __name__ == "__main__":
