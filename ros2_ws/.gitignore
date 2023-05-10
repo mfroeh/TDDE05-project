@@ -65,4 +65,4 @@ build_*/
 # Custom ignore patterns (add your own patterns below this line)
 
 # NLP Model
-src/air_nlp/air_nlp/airproject_model
+#src/air_nlp/air_nlp/airproject_model
