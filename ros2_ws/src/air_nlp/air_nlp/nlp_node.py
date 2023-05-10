@@ -1,13 +1,8 @@
 import rclpy
-import os
+import predict
+
 from rclpy.node import Node
-from tensorflow import keras
-import tensorflow_text as text
-import tensorflow as tf
-from sklearn.preprocessing import LabelBinarizer
-
 from std_msgs.msg import String
-
 
 class NlpNode(Node):
 
@@ -20,7 +15,6 @@ class NlpNode(Node):
             10)
         self.subscription
 
-        self.model = keras.models.load_model(os.getcwd() + "/model")
         self.get_logger().info('Initialization Completed')
 
     def receive_prompt(self, prompt):
@@ -28,9 +22,7 @@ class NlpNode(Node):
         self.get_logger().info('I think "%s"' % self.recognize_intent(prompt))
 
     def recognize_intent(self, prompt):
-        binarizer = LabelBinarizer()
-        result = tf.nn.softmax(self.model(tf.constant(prompt)))
-        return binarizer.inverse_transform(result.numpy())
+        self.get_logger().info(predict("airproject_model", prompt))
 
 
 def main(args=None):
