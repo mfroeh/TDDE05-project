@@ -39,6 +39,9 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
+find_package(visualization_msgs REQUIRED) # Visualization of frontiers
+find_package(std_msgs REQUIRED) # Colors
+
 # add include dirs
 # position_service
 add_executable(position_service src/position_service.cpp)
@@ -71,7 +74,9 @@ ament_target_dependencies(
   "tf2"
   "tf2_geometry_msgs"
   "geometry_msgs"
-  "ros2_kdb_msgs" 
+  "ros2_kdb_msgs"
+  "visualization_msgs"
+  "std_msgs"
   "air_simple_sim_msgs"
 )
 target_link_libraries(exploration_server nlohmann_json)

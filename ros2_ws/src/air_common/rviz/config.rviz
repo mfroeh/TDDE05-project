@@ -10,7 +10,7 @@ Panels:
         - /Map1
         - /LaserScan1
         - /Camera1
-        - /Camera1/Status1
+        - /MarkerArray1
       Splitter Ratio: 0.5
     Tree Height: 864
   - Class: rviz_common/Selection
@@ -602,10 +602,23 @@ Visualization Manager:
         Grid: true
         LaserScan: true
         Map: true
+        MarkerArray: true
         RobotModel: true
         TF: true
         Value: true
       Zoom Factor: 1
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /frontiers
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48

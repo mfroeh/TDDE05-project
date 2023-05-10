@@ -2,12 +2,55 @@
 
 #include <queue>
 #include <algorithm>
+#include <map>
 
-std::vector<CellFrontier> WFD(Point start, Map const &map)
+// http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/OccupancyGrid.html
+#define THRESHOLD 10
+
+void adj(unsigned p, Map const &map, unsigned buffer[8])
 {
-    std::vector<CellFrontier> result{};
+    buffer[0] = p - map.width - 1; // top left
+    buffer[1] = p - map.width;     // top
+    buffer[2] = p - map.width + 1; // top right
+    buffer[3] = p - 1;             // left
+    buffer[4] = p + 1;             // right
+    buffer[5] = p + map.width - 1; // bottom left
+    buffer[6] = p + map.width;     // bottom
+    buffer[7] = p + map.width + 1; // bottom right
+}
 
-    enum WFDState
+/// @brief Determines whether a point is a frontier point
+/// @param p The index of the point in the occupancy map
+/// @param map The occupancy map
+/// @return True if the point is unknown and has at least one open space neighbor
+bool is_frontier(unsigned p, Map const &map)
+{
+    // Point must be unknown
+    if (map[p] != -1)
+        return false;
+
+    unsigned neighbors[8];
+    adj(p, map, neighbors);
+    for (auto &v : neighbors)
+    {
+        // Not actually neighbors (>= map.size instead of < 0 because of unsigned)
+        if (v >= map.size)
+            continue;
+
+        // If a neighbor is occupied
+        if (map[v] > THRESHOLD)
+            return false;
+
+        // TODO: Maybe <= THRESHOLD?
+        if (map[v] == 0)
+            return true;
+    }
+    return false;
+}
+
+std::vector<Frontier> WFD(Map const &map, unsigned minsize)
+{
+    enum State : int8_t
     {
         NONE = 0,
         MAP_OPEN_LIST,       // Points that have been enqueued by the outer BFS
@@ -16,78 +59,120 @@ std::vector<CellFrontier> WFD(Point start, Map const &map)
         FRONTIER_CLOSE_LIST, // Points that have been dequeued by the inner BFS
     };
 
-    // Get starting cell
-    Cell pose{map.index_from_point(start), map};
-    std::cout << "Starting cell: " << pose.x << ", " << pose.y << std::endl;
+    float x{map.origin.position.x / map.resolution};
+    float y{map.origin.position.y / map.resolution};
+    unsigned pose{(-y * map.width) - x};
 
-    std::vector<WFDState> states{map.height * map.width}; // The state of each cell
-    std::queue<Cell> queue_m{};                           // queue used for detecting frontiers
-    std::queue<Cell> queue_f{};                           // queue used for extracting a frontier from a given frontier cell
+    std::queue<unsigned> queue_m{};
+    std::map<unsigned, State> states{};
     queue_m.push(pose);
-    states[pose.to_index(map)] = MAP_OPEN_LIST;
+    states[pose] = MAP_OPEN_LIST;
 
+    std::vector<Frontier> frontiers{};
+    int outer = 0;
+    int inner = 0;
+
+    // Outer BFS to find frontier points
     while (!queue_m.empty())
     {
-        Cell p{queue_m.front()};
+        outer++;
+        unsigned p{queue_m.front()};
         queue_m.pop();
+        // std::cout << p << std::endl;
 
-        if (states[p.to_index(map)] == MAP_CLOSE_LIST)
+        // If already visited
+        if (states[p] == MAP_CLOSE_LIST)
             continue;
 
-        if (p.is_frontier(map))
+        auto t1 = std::chrono::high_resolution_clock::now();
+        if (is_frontier(p, map))
         {
-            queue_f = {};
-            CellFrontier new_frontier{};
-            queue_f.push(p);
-            states[p.to_index(map)] = FRONTIER_OPEN_LIST;
+            auto t2 = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
+            std::cout << "is_frontier: " << duration << std::endl;
 
+            std::queue<unsigned> queue_f{};
+            std::vector<unsigned> points{};
+            queue_f.push(p);
+            states[p] = FRONTIER_OPEN_LIST;
+
+            // Inner BFS to find adjacent frontier points
             while (!queue_f.empty())
             {
-                Cell q{queue_f.front()};
+                inner++;
+                unsigned q{queue_f.front()};
                 queue_f.pop();
 
-                if ((states[q.to_index(map)] == MAP_CLOSE_LIST || states[q.to_index(map)] == FRONTIER_CLOSE_LIST))
+                // If already visited by outer BFS or belongs to other frontier
+                if (states[q] == MAP_CLOSE_LIST || states[q] == FRONTIER_CLOSE_LIST)
                     continue;
 
-                if (q.is_frontier(map))
+                if (is_frontier(q, map))
                 {
-                    new_frontier.cells.push_back(q);
-                    for (auto &w : q.adjacent_diag(map))
+                    points.push_back(q);
+                    unsigned adj_q[8];
+                    adj(q, map, adj_q);
+
+                    for (auto &w : adj_q)
                     {
-                        WFDState mark{states[w.to_index(map)]};
-                        if (mark != FRONTIER_OPEN_LIST &&
-                            mark != FRONTIER_CLOSE_LIST && mark != MAP_CLOSE_LIST)
+                        // Not actually neighbors (>= map.size instead of < 0 because of unsigned)
+                        if (w >= map.size)
+                            continue;
+
+                        if (states[w] != FRONTIER_OPEN_LIST && states[w] != FRONTIER_CLOSE_LIST && states[w] != MAP_CLOSE_LIST)
                         {
-                            queue_f.push(w);
-                            states[w.to_index(map)] = FRONTIER_OPEN_LIST;
+                            if (map[w] != 100)
+                            {
+                                queue_f.push(w);
+                                states[w] = FRONTIER_OPEN_LIST;
+                            }
                         }
                     }
                 }
+                states[q] = FRONTIER_CLOSE_LIST;
+            }
 
-                states[q.to_index(map)] = FRONTIER_CLOSE_LIST;
-                result.push_back(new_frontier);
+            if (points.size() >= minsize)
+                frontiers.push_back(Frontier{points, map});
 
-                // Mark all points of new frontier as MAP_CLOSE_LIST
-                for (auto &c : new_frontier.cells)
-                    states[c.to_index(map)] = MAP_CLOSE_LIST;
+            // Mark all points of new frontier as MAP_CLOSE_LIST
+            for (auto &c : points)
+                states[c] = MAP_CLOSE_LIST;
+        }
 
-                for (auto &v : p.adjacent_diag(map))
+        t1 = std::chrono::high_resolution_clock::now();
+        unsigned adj_p[8];
+        adj(p, map, adj_p);
+        for (auto &v : adj_p)
+        {
+            // Not actually neighbors (>= map.size instead of < 0 because of unsigned)
+            if (v >= map.size)
+                continue;
+
+            // If not already queued, not visited by outer BFS, doesn't belong to frontier and has open space neighbors
+            if (states[v] != MAP_OPEN_LIST && states[v] != MAP_CLOSE_LIST)
+            {
+                unsigned adj_v[8];
+                adj(v, map, adj_v);
+                // If v has atleast one open space neighbor
+                for (auto &w : adj_v)
                 {
-                    WFDState mark{states[v.to_index(map)]};
-                    std::vector<Cell> adj{v.adjacent_diag(map)};
-                    if (mark != MAP_OPEN_LIST && mark != MAP_CLOSE_LIST &&
-                        std::any_of(adj.begin(), adj.end(), [map, states](Cell c)
-                                    { return map.get(c.y, c.x) == 0; }))
+                    if (w >= map.size)
+                        continue;
+
+                    if (map[w] <= THRESHOLD && map[w] >= 0)
                     {
                         queue_m.push(v);
-                        states[v.to_index(map)] = MAP_OPEN_LIST;
+                        states[v] = MAP_OPEN_LIST;
+                        break;
                     }
                 }
-
-                states[p.to_index(map)] = MAP_CLOSE_LIST;
             }
         }
+        states[p] = MAP_CLOSE_LIST;
     }
 
-    return result;
+    std::cout << "Outer: " << outer << ", Inner: " << inner << std::endl;
+
+    return frontiers;
 }

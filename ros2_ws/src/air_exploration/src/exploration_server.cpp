@@ -30,6 +30,11 @@
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
+// Visualization of frontiers
+#include "visualization_msgs/msg/marker_array.hpp"
+#include "visualization_msgs/msg/marker.hpp"
+#include "std_msgs/msg/color_rgba.hpp"
+
 using namespace rclcpp;
 using namespace rclcpp_action;
 using namespace std::placeholders;
@@ -48,6 +53,11 @@ using nav2_msgs::action::NavigateToPose;
 using nav_msgs::msg::OccupancyGrid;
 
 using air_simple_sim_msgs::msg::SemanticObservation;
+
+double euclidean(Point a, Point b)
+{
+    return std::sqrt(std::pow(a.x - b.x, 2) + std::pow(a.y - b.y, 2) + std::pow(a.z - b.z, 2));
+}
 
 class ExplorationActionServer : public Node
 {
@@ -78,11 +88,11 @@ public:
         query_client = create_client<QueryServiceT>(QUERY_SERVICE_TOPIC);
         semantic_sub = create_subscription<SemanticObservation>("semantic_observation", 10, std::bind(&Self::handle_observation, this, _1));
 
+        visualizer_pub = create_publisher<visualization_msgs::msg::MarkerArray>("frontiers", 10);
+
         // Make sure all services are available
-        assert(query_client->wait_for_service(std::chrono::seconds(1)));
+        // assert(query_client->wait_for_service(std::chrono::seconds(1)));
         // assert(navigate_client->wait_for_service(std::chrono::seconds(1)));
-        // Point p;
-        // exists_in_database("", "", &p);
     }
 
 private:
@@ -101,6 +111,8 @@ private:
     rclcpp::Client<QueryServiceT>::SharedPtr query_client{};
     Subscription<SemanticObservation>::SharedPtr semantic_sub{};
 
+    Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr visualizer_pub{};
+
     /// @brief Handles incoming goal requests
     /// @param uuid The unique identifier of the goal
     /// @param goal The goal request
@@ -118,20 +130,24 @@ private:
     {
         // TODO: Maybe allow cancel
         RCLCPP_INFO(get_logger(), "Received request to cancel goal");
-        return CancelResponse::REJECT;
+        cancel(goal_handle);
+        return CancelResponse::ACCEPT;
     }
 
     /// @brief Begins working on newly created goal
     /// @param goal_handle The goal handle to work on
     void handle_accepted(const std::shared_ptr<GoalHandleT> goal_handle)
     {
+        std::string kind{goal_handle->get_goal()->kind};
+        std::string name{goal_handle->get_goal()->name};
         check_exists_database(
-            goal_handle->get_goal()->kind,
-            goal_handle->get_goal()->name,
+            kind,
+            name,
             [&](bool exists, Point p)
             {
                 if (exists)
                 {
+                    RCLCPP_INFO(get_logger(), "%s (%s) already exists in database!", name.c_str(), kind.c_str());
                     auto result{std::make_shared<ActionT::Result>()};
                     result->success = true;
                     result->position = p;
@@ -139,7 +155,7 @@ private:
                 }
                 else
                 {
-                    // TODO: Should keep track of threads and cancel goal if thread is still running
+                    RCLCPP_INFO(get_logger(), "%s (%s) doesn't exists in database. Beginning exploration...", name.c_str(), kind.c_str());
                     std::thread{std::bind(&Self::explore, this, _1), goal_handle}.detach();
                 }
             });
@@ -150,73 +166,127 @@ private:
     void handle_map(const OccupancyGrid::SharedPtr msg)
     {
         map = msg;
-        RCLCPP_INFO(get_logger(), "Updated map");
+        // RCLCPP_INFO(get_logger(), "Updated map");
     }
 
     /// @brief Updates the current position
     /// @param msg The odometry message
-    void handle_odom(const Odometry::SharedPtr msg)
+    void
+    handle_odom(const Odometry::SharedPtr msg)
     {
         pos = msg->pose.pose.position;
-        RCLCPP_INFO_STREAM(get_logger(), "Received position x: " << pos.x << " y: " << pos.y << " z: " << pos.z);
+        // RCLCPP_INFO_STREAM(get_logger(), "Received position x: " << pos.x << " y: " << pos.y << " z: " << pos.z);
     }
 
-    /// @brief Keeps exploring frontiers until either target found or there are no more frontiers
-    /// @param goal_handle The goal handle to work on
-    void explore(const std::shared_ptr<GoalHandleT> goal_handle)
+    void explore(std::shared_ptr<GoalHandleT> goal_handle)
     {
         assert(map != nullptr);
 
-        // TODO: Use a member variables which is set by the result callback (checks for person in database)
-        bool found{};
-        while (!found)
+        if (goal_handle->is_canceling())
         {
-            // TODO: Sort them
-            std::vector<CellFrontier> frontiers{WFD(pos, Map{map})};
-            CellFrontier cf{frontiers.front()};
-            Frontier cur{std::move(cf), Map{map}};
-            Point p{cur.centroid};
-
-            // TODO: Go to the frontier using wilsons service
-            NavigateToPose::Goal msg{};
-            msg.pose.pose.position = p;
-            msg.pose.header.frame_id = "map";
-
-            rclcpp_action::Client<NavigateToPose>::SendGoalOptions send_goal_options{};
-            send_goal_options.goal_response_callback = std::bind(&Self::handle_drive_response, this, _1);
-            send_goal_options.feedback_callback = std::bind(&Self::handle_drive_feedback, this, _1, _2);
-            send_goal_options.result_callback = std::bind(&Self::handle_drive_result, this, _1);
-
-            navigate_client->async_send_goal(msg, send_goal_options);
-            RCLCPP_INFO(get_logger(), "Moving to frontier at x: %f, y: %f", p.x, p.y);
+            cancel(goal_handle);
+            return;
         }
+
+        RCLCPP_INFO(get_logger(), "Launching WFD");
+        auto frontiers{WFD(Map{map}, 10)};
+        RCLCPP_INFO_STREAM(get_logger(), "Found " << frontiers.size() << "frontiers!");
+
+        if (frontiers.empty())
+        {
+            RCLCPP_INFO(get_logger(), "No frontiers left to explore, aborting goal");
+            abort(goal_handle);
+            return;
+        }
+
+        std::sort(frontiers.begin(), frontiers.end(), [this](const Frontier &a, const Frontier &b)
+                  { return euclidean(a.centroid, pos) < euclidean(b.centroid, pos); });
+        Point p{frontiers[0].centroid};
+        visualize_frontier(frontiers);
+
+        // TODO: Go to the frontier using wilsons service
+        NavigateToPose::Goal msg{};
+        msg.pose.pose.position = p;
+        msg.pose.header.frame_id = "map";
+
+        rclcpp_action::Client<NavigateToPose>::SendGoalOptions send_goal_options{};
+        send_goal_options.goal_response_callback = std::bind(&Self::handle_drive_response, this, _1, goal_handle);
+        send_goal_options.feedback_callback = std::bind(&Self::handle_drive_feedback, this, _1, _2, goal_handle);
+        send_goal_options.result_callback = std::bind(&Self::handle_drive_result, this, _1, goal_handle);
+        navigate_client->async_send_goal(msg, send_goal_options);
+        RCLCPP_INFO(get_logger(), "Started moving to frontier at x: %f, y: %f", p.x, p.y);
+    }
+
+    void visualize_frontier(std::vector<Frontier> frontiers)
+    {
+        using std_msgs::msg::ColorRGBA;
+        using visualization_msgs::msg::Marker;
+        using visualization_msgs::msg::MarkerArray;
+
+        MarkerArray arr{};
+        Marker marker{};
+        marker.id = 1242;
+        marker.header.frame_id = "odom";
+        marker.type = visualization_msgs::msg::Marker::CUBE_LIST;
+        marker.action = 0;
+        marker.scale.x = 0.5;
+        marker.scale.y = 0.5;
+        marker.scale.z = 0.5;
+        marker.pose.orientation.w = 1.0;
+        marker.color.a = 1.0;
+
+        for (auto &f : frontiers)
+        {
+            Point p{f.centroid};
+            p.x = p.x;
+            p.y = p.y;
+            marker.points.push_back(p);
+
+            // Depending on class
+            ColorRGBA color;
+            color.a = 1.0;
+            color.r = 1.0;
+            color.g = 0.5;
+            color.b = 0.5;
+            marker.colors.push_back(color);
+        }
+        arr.markers.push_back(marker);
+
+        visualizer_pub->publish(arr);
     }
 
     void handle_drive_response(
-        std::shared_future<rclcpp_action::ClientGoalHandle<NavigateToPose>::SharedPtr> future)
+        std::shared_future<rclcpp_action::ClientGoalHandle<NavigateToPose>::SharedPtr> future, std::shared_ptr<GoalHandleT> goal_handle)
     {
-        auto todo = future.get();
-        if (!todo)
-            RCLCPP_ERROR(get_logger(), "Goal was rejected by server");
+        if (!future.get())
+        {
+            RCLCPP_ERROR(get_logger(), "Navigation was rejected, aborting goal...");
+            abort(goal_handle);
+        }
         else
             RCLCPP_INFO(get_logger(), "Goal accepted by server, waiting for result");
     }
 
     void handle_drive_feedback(rclcpp_action::ClientGoalHandle<NavigateToPose>::SharedPtr goal,
-                               const std::shared_ptr<const NavigateToPose::Feedback> feedback)
+                               const std::shared_ptr<const NavigateToPose::Feedback> feedback, std::shared_ptr<GoalHandleT> goal_handle)
     {
-        RCLCPP_INFO(get_logger(), "Remaining distance to goal: %f (%ds)", feedback->distance_remaining, feedback->estimated_time_remaining.sec);
+        // RCLCPP_INFO(get_logger(), "Remaining distance to goal: %f (%ds)", feedback->distance_remaining, feedback->estimated_time_remaining.sec);
+        auto my_feedback{std::make_shared<ActionT::Feedback>()};
+        my_feedback->position = feedback->current_pose.pose.position;
+        goal_handle->publish_feedback(my_feedback);
     }
 
-    void handle_drive_result(rclcpp_action::ClientGoalHandle<NavigateToPose>::WrappedResult const &result)
+    void handle_drive_result(rclcpp_action::ClientGoalHandle<NavigateToPose>::WrappedResult const &result, std::shared_ptr<GoalHandleT> goal_handle)
     {
         switch (result.code)
         {
         case rclcpp_action::ResultCode::SUCCEEDED:
             RCLCPP_INFO(get_logger(), "Goal was succeeded");
+            explore(goal_handle);
             break;
         case rclcpp_action::ResultCode::ABORTED:
             RCLCPP_ERROR(get_logger(), "Goal was aborted: %d", (int)result.code);
+            explore(goal_handle);
             return;
         case rclcpp_action::ResultCode::CANCELED:
             RCLCPP_ERROR(get_logger(), "Goal was canceled");
@@ -227,40 +297,9 @@ private:
         }
     }
 
-    // TODO: This is copied from the lab
-    // Maybe just keep track locally?
     void handle_observation(const SemanticObservation::SharedPtr msg)
     {
-        RCLCPP_INFO(get_logger(), "Got new observation!");
-        auto request{std::make_shared<QueryServiceT::Request>()};
-        request->graphname = GRAPHNAME;
-
-        std::ostringstream os{};
-        os << "PREFIX gis: <http://www.ida.liu.se/~TDDE05/gis>" << std::endl
-           << "PREFIX properties: <http://www.ida.liu.se/~TDDE05/properties>" << std::endl
-           << "SELECT ?x ?y WHERE { <" << msg->uuid.c_str() << "> a <" << msg->klass.c_str() << "> ;" << std::endl
-           << "properties:location [ gis:x ?x; gis:y ?y ] . }" << std::endl;
-        request->query = os.str();
-
-        RCLCPP_INFO(get_logger(), "Query: %s", request->query.c_str());
-        auto result = query_client->async_send_request(
-            request,
-            [this, msg](rclcpp::Client<QueryServiceT>::SharedFuture future)
-            {
-                RCLCPP_INFO(get_logger(), "%d\n",
-                            future.get()->success);
-
-                // QJsonDocument doc = QJsonDocument::fromJson(
-                //     QByteArray::fromStdString(future.get()->result));
-
-                // RCLCPP_INFO(get_logger(), "Json: %s", doc.toJson().toStdString().c_str());
-                // if (doc.object()["results"].toObject()["bindings"].toArray().size() ==
-                //     0)
-                // {
-                //     // TODO
-                //     RCLCPP_INFO(get_logger(), "Doesn't exist!");
-                // }
-            });
+        // If we find the guy we are looking for, we want to cancel the goal
     }
 
     /// @brief Checks if an object exists in the database
@@ -270,6 +309,13 @@ private:
     template <typename CallbackT>
     void check_exists_database(std::string kind, std::string name, CallbackT callback)
     {
+        // TODO
+        Point p{};
+        p.x = 1;
+        p.y = 2;
+        callback(false, p);
+        return;
+
         RCLCPP_INFO(this->get_logger(), "Starting query\n");
         auto request{
             std::make_shared<QueryServiceT::Request>()};
@@ -303,6 +349,24 @@ private:
                     callback(true, p);
                 }
             });
+    }
+
+    void abort(std::shared_ptr<GoalHandleT> handle)
+    {
+        RCLCPP_INFO(get_logger(), "Aborting goal...");
+        auto result{std::make_shared<ActionT::Result>()};
+        result->success = false;
+        result->position = pos;
+        handle->abort(result);
+    }
+
+    void cancel(std::shared_ptr<GoalHandleT> handle)
+    {
+        RCLCPP_INFO(get_logger(), "Cancelling goal...");
+        auto result{std::make_shared<ActionT::Result>()};
+        result->success = false;
+        result->position = pos;
+        handle->canceled(result);
     }
 };
 
