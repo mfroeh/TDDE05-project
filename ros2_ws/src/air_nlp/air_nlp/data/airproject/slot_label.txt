@@ -1,0 +1,11 @@
+PAD
+UNK
+O
+B-goal.goto
+B-office
+B-goal.bring
+B-user
+B-quantity
+B-object
+B-person
+B-everyone

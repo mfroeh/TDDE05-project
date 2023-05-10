@@ -1,8 +1,9 @@
 import rclpy
-import predict
+from .predict import predict
 
 from rclpy.node import Node
 from std_msgs.msg import String
+
 
 class NlpNode(Node):
 
@@ -22,7 +23,7 @@ class NlpNode(Node):
         self.get_logger().info('I think "%s"' % self.recognize_intent(prompt))
 
     def recognize_intent(self, prompt):
-        self.get_logger().info(predict("airproject_model", prompt))
+        self.get_logger().info(predict("./airproject_model", prompt))
 
 
 def main(args=None):

@@ -9,7 +9,7 @@ from seqeval.metrics import precision_score, recall_score, f1_score
 from transformers import BertConfig, DistilBertConfig, AlbertConfig
 from transformers import BertTokenizer, DistilBertTokenizer, AlbertTokenizer
 
-from model import JointBERT, JointDistilBERT, JointAlbert
+from .model import JointBERT, JointDistilBERT, JointAlbert
 
 MODEL_CLASSES = {
     'bert': (BertConfig, JointBERT, BertTokenizer),
