@@ -50,24 +50,38 @@ def get_destination_type(x):
         return "invalid"
 
 
-def find_destination(words, slots):
-    for word, slot in zip(words, slots):
+def create_destination(word, slot):
+    destination = Destination()
+    destination.name = remove_suffix(word, "'s").capitalize()
+    destination.type = get_destination_type(slot)
+    return destination
+
+
+def find_destination(i, words, slots):
+    for j, (word, slot) in enumerate(zip(words[i:], slots[i:])):
         if is_destination(slot):
-            destination = Destination()
-            destination.name = remove_suffix(word, "'s").capitalize()
-            destination.type = get_destination_type(slot)
+            destination = create_destination(word, slot)
+            slots.pop(j + i)
+            words.pop(j + i)
             return destination
     return None
 
 
-def find_object(words, slots):
-    for word, slot in zip(words, slots):
+def create_object(word):
+    object = remove_suffix(word, "s")
+    if object == "sandwiche":
+        return "sandwich"
+    else:
+        return object
+
+
+def find_object(i, words, slots):
+    for j, (word, slot) in enumerate(zip(words[i:], slots[i:])):
         if is_object(slot):
-            object = remove_suffix(word, "s")
-            if object == "sandwiche":
-                return "sandwich"
-            else:
-                return object
+            object = create_object(word)
+            slots.pop(j + i)
+            words.pop(j + i)
+            return object
     return None
 
 
@@ -95,6 +109,21 @@ def remove_suffix(s, suffix):
     if suffix and s.endswith(suffix):
         return s[:-len(suffix)]
     return s
+
+
+def add_known_person(name, people):
+    person = Destination()
+    person.type = "person"
+    person.name = name
+    people.append(person)
+
+
+def add_bring_goal(object, destination, goals):
+    goal = Goal()
+    goal.type = "bring"
+    goal.object = object
+    goal.destination = destination
+    goals.append(goal)
 
 
 class NlpNode(Node):
@@ -166,67 +195,67 @@ class NlpNode(Node):
         goals = []
         known_people = []
 
-        for i, (word, slot) in enumerate(zip(words, slots)):
+        for i in range(len(slots) - 1):
+            if i >= len(slots):
+                break
+            slot = slots[i]
+            word = words[i]
             if slot == "B-goal.goto":
                 goal = Goal()
                 goal.type = "goto"
-                destination = find_destination(words[i:], slots[i:])
+                destination = find_destination(i, words, slots)
                 if destination is None:
                     raise Exception("Could not find a destination for goto")
                 else:
                     goal.destination = destination
                     goals.append(goal)
-                    person = Destination()
-                    person.type = "person"
-                    person.name = destination.name
-                    known_people.append(person)
+                    add_known_person(destination.name, known_people)
             elif slot == "B-goal.bring":
-                object = find_object(words[i:], slots[i:])
-                destination = find_destination(words[i:], slots[i:])
+                object = find_object(i, words, slots)
+                destination = find_destination(i, words, slots)
                 if destination is None:
                     if is_there_everyone(slots[i:]):
-                        goal = Goal()
-                        goal.type = "bring"
-                        goal.object = object
                         destination = Destination()
                         destination.type = "user"
                         destination.name = "N/A"
-                        goal.destination = destination
-                        goals.append(goal)
+                        add_bring_goal(object, destination, goals)
                         for destination in known_people:
-                            goal = Goal()
-                            goal.type = "bring"
-                            goal.destination = destination
-                            goal.object = object
-                            goals.append(goal)
+                            add_bring_goal(object, destination, goals)
                     else:
                         if not known_people:
-                            raise Exception(
-                                "Could not find a destination for bring and there are no known people")
+                            raise Exception("Could not find a destination for bring")
                         else:
                             quantity = find_quantity(words[i:], slots[i:])
                             for i in range(quantity):
-                                goal = Goal()
-                                goal.type = "bring"
-                                goal.object = object
-                                goal.destination = known_people[-1]
-                                goals.append(goal)
+                                add_bring_goal(object, known_people[-1], goals)
                 else:
                     quantity = find_quantity(words[i:], slots[i:])
-                    person = Destination()
-                    person.type = "person"
-                    person.name = destination.name
-                    known_people.append(person)
+                    add_known_person(destination.name, known_people)
+
                     for i in range(quantity):
-                        goal = Goal()
-                        goal.type = "bring"
-                        goal.object = object
-                        goal.destination = destination
-                        goals.append(goal)
+                        add_bring_goal(object, destination, goals)
+            elif is_destination(slot):
+                goal = Goal()
+                last_goal = goals[-1]
+                goal.type = last_goal.type
+                goal.object = last_goal.object
+                goal.destination = create_destination(word, slot)
+                add_known_person(goal.destination.name, known_people)
+                goals.append(goal)
+            elif is_object(slot):
+                goal = Goal()
+                last_goal = goals[-1]
+                if last_goal.type != "bring":
+                    raise Exception("I could not understand composite goals")
+                goal.type = "bring"
+                goal.object = create_object(word)
+                goal.destination = last_goal.destination
+                goals.append(goal)
 
         for goal in goals:
             if goal.type == "goto":
-                self.get_logger().info("Goal: go to %s (%s)" % (goal.destination.name, goal.destination.type))
+                self.get_logger().info("Goal: go to %s (%s)" % (goal.destination.name,
+                                                                goal.destination.type))
             else:
                 self.get_logger().info("Goal: bring %s to %s (%s)" %
                                        (goal.object, goal.destination.name, goal.destination.type))
