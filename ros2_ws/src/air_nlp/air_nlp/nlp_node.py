@@ -132,7 +132,7 @@ class NlpNode(Node):
         super().__init__('nlp_node')
 
         model_dir = os.path.expanduser(
-            '~') + "/air-projects-03/ros2_ws/src/air_nlp/air_nlp/airproject_model/"
+            '~') + "/TDDE05/air-projects-03/ros2_ws/src/air_nlp/air_nlp/airproject_model/"
         self.args = get_args(model_dir)
         self.device = get_device()
         self.model = load_model(model_dir, self.args, self.device)

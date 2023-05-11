@@ -1,5 +1,5 @@
 torch==1.6.0
 transformers
-seqeval==0.0.12
+seqeval==1.2.2
 pytorch-crf==0.7.2
 word2number
