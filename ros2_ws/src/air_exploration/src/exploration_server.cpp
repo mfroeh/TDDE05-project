@@ -1,39 +1,37 @@
 #include <thread>
 #include <chrono>
-#include <iostream>
 #include <future>
 #include <string>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
+
+// Navigation and mapping
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <nav2_msgs/action/navigate_to_pose.hpp>
-#include <tf2_ros/buffer.h>
-#include <tf2_ros/transform_listener.h>
 
+// Transformations
+#include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
-#include <geometry_msgs/msg/transform_stamped.hpp>
-#include <nav_msgs/msg/odometry.hpp>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
+// Visualization of frontiers
+#include <visualization_msgs/msg/marker_array.hpp>
+#include <visualization_msgs/msg/marker.hpp>
+#include <std_msgs/msg/color_rgba.hpp>
+
+// Semantic sensor
 #include <ros2_kdb_msgs/srv/query_database.hpp>
 #include <air_simple_sim_msgs/msg/semantic_observation.hpp>
 
+// All our stuff
 #include "air_interfaces/action/explore.hpp"
 #include "air_interfaces/srv/get_position.hpp"
 #include "exploration_constants.hpp"
 #include "frontier.hpp"
-
-#include "geometry_msgs/msg/point.hpp"
-#include "geometry_msgs/msg/point_stamped.hpp"
-#include "geometry_msgs/msg/transform_stamped.hpp"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
-
-// Visualization of frontiers
-#include "visualization_msgs/msg/marker_array.hpp"
-#include "visualization_msgs/msg/marker.hpp"
-#include "std_msgs/msg/color_rgba.hpp"
 
 using namespace rclcpp;
 using namespace rclcpp_action;
@@ -54,10 +52,7 @@ using nav_msgs::msg::OccupancyGrid;
 
 using air_simple_sim_msgs::msg::SemanticObservation;
 
-double euclidean(Point a, Point b)
-{
-    return std::sqrt(std::pow(a.x - b.x, 2) + std::pow(a.y - b.y, 2) + std::pow(a.z - b.z, 2));
-}
+using visualization_msgs::msg::MarkerArray;
 
 class ExplorationActionServer : public Node
 {
@@ -73,22 +68,23 @@ public:
             std::bind(&Self::handle_cancel, this, _1),
             std::bind(&Self::handle_accepted, this, _1));
 
-        // The current map occupancy grid
+        // Map and odometry subscription
         map_sub = create_subscription<OccupancyGrid>("map", 10, std::bind(&Self::handle_map, this, _1));
         odom_sub = create_subscription<Odometry>("odom", 10, std::bind(&Self::handle_odom, this, _1));
 
         // TODO: Replace with wilson
         navigate_client = rclcpp_action::create_client<NavigateToPose>(this, "navigate_to_pose");
 
-        // Transforming
+        // Transformations
         tf_buffer = std::make_unique<tf2_ros::Buffer>(get_clock());
         tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
 
-        // Database and semantic observation
+        // Semantic sensor stuff
         query_client = create_client<QueryServiceT>(QUERY_SERVICE_TOPIC);
-        semantic_sub = create_subscription<SemanticObservation>("semantic_observation", 10, std::bind(&Self::handle_observation, this, _1));
+        semantic_sub = create_subscription<SemanticObservation>(SEMANTIC_SENSOR_TOPIC, 10, std::bind(&Self::handle_observation, this, _1));
 
-        visualizer_pub = create_publisher<visualization_msgs::msg::MarkerArray>("frontiers", 10);
+        // Visualization
+        visualizer_pub = create_publisher<MarkerArray>(FRONTIER_VISUALIZATION_TOPIC, 10);
 
         // Make sure all services are available
         // assert(query_client->wait_for_service(std::chrono::seconds(1)));
@@ -98,26 +94,31 @@ public:
 private:
     Server<ActionT>::SharedPtr server{};
 
+    // Subscribers
     Subscription<OccupancyGrid>::SharedPtr map_sub{};
     Subscription<Odometry>::SharedPtr odom_sub{};
     OccupancyGrid::SharedPtr map{};
     Point pos{};
 
+    // Navigation client
     rclcpp_action::Client<NavigateToPose>::SharedPtr navigate_client{};
 
+    // Transformations
     std::unique_ptr<tf2_ros::Buffer> tf_buffer{};
     std::shared_ptr<tf2_ros::TransformListener> tf_listener{};
 
+    // Semantic sensor
     rclcpp::Client<QueryServiceT>::SharedPtr query_client{};
     Subscription<SemanticObservation>::SharedPtr semantic_sub{};
 
-    Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr visualizer_pub{};
+    // Visualization
+    Publisher<MarkerArray>::SharedPtr visualizer_pub{};
 
     /// @brief Handles incoming goal requests
     /// @param uuid The unique identifier of the goal
     /// @param goal The goal request
     /// @return Whether the goal should be accepted and executed
-    GoalResponse handle_goal(const GoalUUID &uuid, std::shared_ptr<const ActionT::Goal> goal)
+    GoalResponse handle_goal(GoalUUID const &uuid, std::shared_ptr<const ActionT::Goal> goal)
     {
         RCLCPP_INFO(get_logger(), "Received goal request for %s (%s)", goal->name.c_str(), goal->kind.c_str());
         return GoalResponse::ACCEPT_AND_EXECUTE;
@@ -126,7 +127,7 @@ private:
     /// @brief Cancels the goal
     /// @param goal_handle The goal handle to cancel
     /// @return Whether the goal was successfully cancelled
-    CancelResponse handle_cancel(const std::shared_ptr<GoalHandleT> goal_handle)
+    CancelResponse handle_cancel(std::shared_ptr<GoalHandleT> const goal_handle)
     {
         // TODO: Maybe allow cancel
         RCLCPP_INFO(get_logger(), "Received request to cancel goal");
@@ -136,7 +137,7 @@ private:
 
     /// @brief Begins working on newly created goal
     /// @param goal_handle The goal handle to work on
-    void handle_accepted(const std::shared_ptr<GoalHandleT> goal_handle)
+    void handle_accepted(std::shared_ptr<GoalHandleT> const goal_handle)
     {
         std::string kind{goal_handle->get_goal()->kind};
         std::string name{goal_handle->get_goal()->name};
@@ -171,26 +172,35 @@ private:
 
     /// @brief Updates the current position
     /// @param msg The odometry message
-    void
-    handle_odom(const Odometry::SharedPtr msg)
+    void handle_odom(const Odometry::SharedPtr msg)
     {
-        pos = msg->pose.pose.position;
-        // RCLCPP_INFO_STREAM(get_logger(), "Received position x: " << pos.x << " y: " << pos.y << " z: " << pos.z);
+        PointStamped in{};
+        in.header.frame_id = msg->header.frame_id;
+        in.header.stamp = msg->header.stamp;
+        in.point = msg->pose.pose.position;
+
+        PointStamped out{};
+        if (try_transform_to(in, out, "map", false))
+        {
+            pos = out.point;
+            // RCLCPP_INFO(get_logger(), "Updated position");
+        }
     }
 
+    /// @brief Does a wavefront frontier detection and moves towards one of the frontiers according to the policy specified in the goal
+    /// @param goal_handle The goal handle to work on
     void explore(std::shared_ptr<GoalHandleT> goal_handle)
     {
         assert(map != nullptr);
 
         if (goal_handle->is_canceling())
         {
-            cancel(goal_handle);
             return;
         }
 
         RCLCPP_INFO(get_logger(), "Launching WFD");
         auto frontiers{WFD(Map{map}, 10)};
-        RCLCPP_INFO_STREAM(get_logger(), "Found " << frontiers.size() << "frontiers!");
+        RCLCPP_INFO_STREAM(get_logger(), "Found " << frontiers.size() << " frontiers!");
 
         if (frontiers.empty())
         {
@@ -199,8 +209,21 @@ private:
             return;
         }
 
-        std::sort(frontiers.begin(), frontiers.end(), [this](const Frontier &a, const Frontier &b)
-                  { return euclidean(a.centroid, pos) < euclidean(b.centroid, pos); });
+        // Ascending by distance to robot
+        auto closest{[this](Frontier const &a, Frontier const &b)
+                     { return euclidean(a.centroid, pos) < euclidean(b.centroid, pos); }};
+
+        // Descending by size
+        auto biggest{[this](Frontier const &a, Frontier const &b)
+                     { return a.size > b.size; }};
+
+        if (goal_handle->get_goal()->policy == "closest")
+            std::sort(frontiers.begin(), frontiers.end(), closest);
+        else if (goal_handle->get_goal()->policy == "biggest")
+            std::sort(frontiers.begin(), frontiers.end(), biggest);
+        else
+            std::sort(frontiers.begin(), frontiers.end(), closest);
+
         Point p{frontiers[0].centroid};
         visualize_frontier(frontiers);
 
@@ -217,6 +240,8 @@ private:
         RCLCPP_INFO(get_logger(), "Started moving to frontier at x: %f, y: %f", p.x, p.y);
     }
 
+    /// @brief Visualizes the points of all the frontiers and their centroids
+    /// @param frontiers
     void visualize_frontier(std::vector<Frontier> frontiers)
     {
         using std_msgs::msg::ColorRGBA;
@@ -226,7 +251,7 @@ private:
         MarkerArray arr{};
         Marker marker{};
         marker.id = 1242;
-        marker.header.frame_id = "odom";
+        marker.header.frame_id = "map";
         marker.type = visualization_msgs::msg::Marker::CUBE_LIST;
         marker.action = 0;
         marker.scale.x = 0.5;
@@ -242,7 +267,6 @@ private:
             p.y = p.y;
             marker.points.push_back(p);
 
-            // Depending on class
             ColorRGBA color;
             color.a = 1.0;
             color.r = 1.0;
@@ -299,7 +323,67 @@ private:
 
     void handle_observation(const SemanticObservation::SharedPtr msg)
     {
-        // If we find the guy we are looking for, we want to cancel the goal
+        PointStamped out{};
+        if (try_transform_to(msg->point, out, "map", true))
+        {
+            RCLCPP_INFO(get_logger(), "Found new semantic observation!");
+            // TODO: If we find the guy we are looking for, we want to succeed the goal
+        }
+    }
+
+private:
+    // Helper functions
+    /// @brief Calculates the euclidean distance between two points
+    /// @param a The first point
+    /// @param b The second point
+    /// @return The euclidean distance between the two points
+    static double euclidean(Point a, Point b)
+    {
+        return std::sqrt(std::pow(a.x - b.x, 2) + std::pow(a.y - b.y, 2) + std::pow(a.z - b.z, 2));
+    }
+
+    /// @brief Tries to transform a point to a target frame
+    /// @param in The point to transform
+    /// @param out The transformed point
+    /// @param target The target frame
+    /// @return True if the transformation was successful, false otherwise
+    bool try_transform_to(PointStamped in, PointStamped &out, std::string target, bool log) const
+    {
+        try
+        {
+            // in.header.stamp = now() - Duration::from_seconds(0.1);
+            out = tf_buffer->transform(in, target);
+            if (log) RCLCPP_INFO(get_logger(), "Transformed from %s (%f, %f) to %s (%f, %f)", in.header.frame_id.c_str(), in.point.x, in.point.y, target.c_str(), out.point.x, out.point.y);
+            return true;
+        }
+        catch (const tf2::TransformException &ex)
+        {
+            if (log) RCLCPP_INFO(get_logger(), "Error transforming pose from %s to %s: %s", in.header.frame_id.c_str(), target.c_str(), ex.what());
+            return false;
+        }
+    }
+
+    /// @brief Aborts a goal
+    /// @param handle The handle to the goal
+    void abort(std::shared_ptr<GoalHandleT> handle) const
+    {
+        RCLCPP_INFO(get_logger(), "Aborting goal...");
+        auto result{std::make_shared<ActionT::Result>()};
+        result->success = false;
+        result->position = pos;
+        handle->abort(result);
+    }
+
+    // TODO: Should cancellation ever be done by us or is it done when returning ACCEPT on the cancellation request?
+    /// @brief Cancels a goal
+    /// @param handle The handle to the goal
+    void cancel(std::shared_ptr<GoalHandleT> handle) const
+    {
+        RCLCPP_INFO(get_logger(), "Cancelling goal...");
+        auto result{std::make_shared<ActionT::Result>()};
+        result->success = false;
+        result->position = pos;
+        handle->canceled(result);
     }
 
     /// @brief Checks if an object exists in the database
@@ -307,7 +391,7 @@ private:
     /// @param name The name of the object
     /// @param callback The callback to call with the result
     template <typename CallbackT>
-    void check_exists_database(std::string kind, std::string name, CallbackT callback)
+    void check_exists_database(std::string kind, std::string name, CallbackT callback) const
     {
         // TODO
         Point p{};
@@ -349,24 +433,6 @@ private:
                     callback(true, p);
                 }
             });
-    }
-
-    void abort(std::shared_ptr<GoalHandleT> handle)
-    {
-        RCLCPP_INFO(get_logger(), "Aborting goal...");
-        auto result{std::make_shared<ActionT::Result>()};
-        result->success = false;
-        result->position = pos;
-        handle->abort(result);
-    }
-
-    void cancel(std::shared_ptr<GoalHandleT> handle)
-    {
-        RCLCPP_INFO(get_logger(), "Cancelling goal...");
-        auto result{std::make_shared<ActionT::Result>()};
-        result->success = false;
-        result->position = pos;
-        handle->canceled(result);
     }
 };
 

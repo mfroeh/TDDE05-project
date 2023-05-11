@@ -2,7 +2,6 @@
 
 #include <queue>
 #include <algorithm>
-#include <map>
 
 // http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/OccupancyGrid.html
 #define THRESHOLD 10
@@ -19,10 +18,6 @@ void adj(unsigned p, Map const &map, unsigned buffer[8])
     buffer[7] = p + map.width + 1; // bottom right
 }
 
-/// @brief Determines whether a point is a frontier point
-/// @param p The index of the point in the occupancy map
-/// @param map The occupancy map
-/// @return True if the point is unknown and has at least one open space neighbor
 bool is_frontier(unsigned p, Map const &map)
 {
     // Point must be unknown
@@ -41,7 +36,7 @@ bool is_frontier(unsigned p, Map const &map)
         if (map[v] > THRESHOLD)
             return false;
 
-        // TODO: Maybe <= THRESHOLD?
+        // TODO: Test <= THRESHOLD?
         if (map[v] == 0)
             return true;
     }
@@ -64,13 +59,12 @@ std::vector<Frontier> WFD(Map const &map, unsigned minsize)
     unsigned pose{(-y * map.width) - x};
 
     std::queue<unsigned> queue_m{};
-    std::map<unsigned, State> states{};
+    State states[map.size]{};
     queue_m.push(pose);
     states[pose] = MAP_OPEN_LIST;
 
     std::vector<Frontier> frontiers{};
-    int outer = 0;
-    int inner = 0;
+    int outer{}, inner{};
 
     // Outer BFS to find frontier points
     while (!queue_m.empty())
@@ -78,19 +72,13 @@ std::vector<Frontier> WFD(Map const &map, unsigned minsize)
         outer++;
         unsigned p{queue_m.front()};
         queue_m.pop();
-        // std::cout << p << std::endl;
 
         // If already visited
         if (states[p] == MAP_CLOSE_LIST)
             continue;
 
-        auto t1 = std::chrono::high_resolution_clock::now();
         if (is_frontier(p, map))
         {
-            auto t2 = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
-            std::cout << "is_frontier: " << duration << std::endl;
-
             std::queue<unsigned> queue_f{};
             std::vector<unsigned> points{};
             queue_f.push(p);
@@ -140,7 +128,6 @@ std::vector<Frontier> WFD(Map const &map, unsigned minsize)
                 states[c] = MAP_CLOSE_LIST;
         }
 
-        t1 = std::chrono::high_resolution_clock::now();
         unsigned adj_p[8];
         adj(p, map, adj_p);
         for (auto &v : adj_p)
@@ -171,8 +158,6 @@ std::vector<Frontier> WFD(Map const &map, unsigned minsize)
         }
         states[p] = MAP_CLOSE_LIST;
     }
-
-    std::cout << "Outer: " << outer << ", Inner: " << inner << std::endl;
 
     return frontiers;
 }

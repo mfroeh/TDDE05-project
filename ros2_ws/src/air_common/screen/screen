@@ -49,4 +49,4 @@ stuff "tdde05-start; ros2 run air_exploration exploration_server"
 
 screen 9
 title "Test exploration"
-stuff "tdde05-start; ros2 action send_goal explore air_interfaces/Explore '{name: \"Hello\", kind: \"Object\"}'"
+stuff "tdde05-start; ros2 action send_goal explore air_interfaces/Explore '{name: \"Hello\", kind: \"Object\", policy: \"biggest\", minsize: 15}'"

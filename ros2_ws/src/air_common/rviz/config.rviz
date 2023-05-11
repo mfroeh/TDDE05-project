@@ -7,6 +7,7 @@ Panels:
         - /Global Options1
         - /Status1
         - /TF1
+        - /TF1/Frames1
         - /Map1
         - /LaserScan1
         - /Camera1
@@ -58,7 +59,7 @@ Visualization Manager:
       Frames:
         All Enabled: false
         base_link:
-          Value: false
+          Value: true
         bump_front_center:
           Value: false
         bump_front_left:
@@ -124,7 +125,7 @@ Visualization Manager:
         left_wheel:
           Value: false
         map:
-          Value: false
+          Value: true
         mouse:
           Value: false
         oakd_pro_camera_bracket:
@@ -183,7 +184,7 @@ Visualization Manager:
       Name: TF
       Show Arrows: true
       Show Axes: true
-      Show Names: false
+      Show Names: true
       Tree:
         map:
           odom:
@@ -617,7 +618,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /frontiers
+        Value: /frontier_visualization
       Value: true
   Enabled: true
   Global Options:
@@ -665,7 +666,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 15.260525703430176
+      Distance: 30.323379516601562
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -680,10 +681,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.3547961711883545
+      Pitch: 1.354796290397644
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.807262897491455
+      Yaw: 2.250912666320801
     Saved: ~
 Window Geometry:
   Camera:
