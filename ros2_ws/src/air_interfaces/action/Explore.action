@@ -3,7 +3,7 @@
 # Request
 string kind
 string name
-string policy
+string policy # "closest", "biggest"
 uint32 minsize
 ---
 # Result
