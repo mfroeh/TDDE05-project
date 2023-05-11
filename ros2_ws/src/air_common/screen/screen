@@ -37,7 +37,7 @@ stuff "tdde05-start; start-tdde05; ros2 run ros_hypertension planner_server\015"
 
 screen 12
 title "Planner II"
-stuff "tdde05-start; start-tdde05; ros2 run air_planning planningNode\015"
+stuff "tdde05-start; start-tdde05; ros2 run air_planning planning_node\015"
 
 screen 13
 title "NLP I"
@@ -45,7 +45,7 @@ stuff "tdde05-start; start-tdde05; ros2 run air_nlp nlp_node\015"
 
 screen 14
 title "Navigation I"
-stuff "tdde05-start; start-tdde05; ros2 run air_navgiation navigation_node\015"
+stuff "tdde05-start; start-tdde05; ros2 run air_navigation navigation_node\015"
 
 # Not related to what we built
 screen 20
