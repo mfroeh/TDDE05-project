@@ -20,6 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+        	'planning_node = air_planning.planning_node:main'
         ],
     },
 )
