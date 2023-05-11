@@ -14,7 +14,7 @@ import numpy as np
 import ament_index_python
 
 from std_msgs.msg import String,Header
-from air_lab_interfaces.msg import People,Person
+from air_interfaces.msg import People,Person
 from air_simple_sim_msgs.msg import SemanticObservation
 
 

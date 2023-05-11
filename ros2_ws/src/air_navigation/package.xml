@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>air_navigation</name>
-  <version>0.0.0</version>
+  <version>0.0.1</version>
   <description>TODO: Package description</description>
   <maintainer email="weizh994@student.liu.se">weizh994</maintainer>
   <license>TODO: License declaration</license>
