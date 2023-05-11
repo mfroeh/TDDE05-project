@@ -21,11 +21,11 @@
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 
-#include "air_lab_interfaces/msg/people.hpp"
-#include "air_lab_interfaces/msg/person.hpp"
+#include "air_interfaces/msg/people.hpp"
+#include "air_interfaces/msg/person.hpp"
 
-using air_lab_interfaces::msg::Person;
-using air_lab_interfaces::msg::People;
+using air_interfaces::msg::Person;
+using air_interfaces::msg::People;
 
 using nav2_costmap_2d::LETHAL_OBSTACLE;
 using nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE;

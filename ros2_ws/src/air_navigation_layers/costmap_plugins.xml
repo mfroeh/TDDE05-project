@@ -2,10 +2,10 @@
   <class name="air_navigation_layers/HumanLayer" type="air_navigation_layers::HumanLayer" base_class_type="nav2_costmap_2d::Layer">
     <description>This is an example plugin which get human position</description>
   </class>
-  <!-- <class name="air_navigation_layers/ProxemicLayer" type="air_navigation_layers::ProxemicLayer" base_class_type="nav2_costmap_2d::Layer">
+  <class name="air_navigation_layers/ProxemicLayer" type="air_navigation_layers::ProxemicLayer" base_class_type="nav2_costmap_2d::Layer">
     <description>Uses people information to change the costmap</description>
   </class>
   <class name="air_navigation_layers/PassingLayer" type="air_navigation_layers::PassingLayer" base_class_type="nav2_costmap_2d::Layer">
     <description>Uses people information to change the costmap</description>
-  </class> -->
+  </class>
 </library>
