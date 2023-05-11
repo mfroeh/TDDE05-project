@@ -11,6 +11,8 @@ from pathlib import Path
 from ros2_kdb_msgs.srv import QueryDatabase
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 import json
+from rclpy.action import ActionServer
+from air_interfaces.action import Goals
 
 #from math import sqrt
 
@@ -19,13 +21,35 @@ class planningNode(Node):
     def __init__(self):
       super().__init__('planning_node')
 
+      self.get_logger().info("hi from planning Node")
+
       self.group = ReentrantCallbackGroup()
 
-      self.data = self.queryDB()
-      print("hi from planning Node")
-    #  self.makeProblem(self.data)
-      #print(self.data)
+      relPath = Path.cwd()
+      self.path = ""
+      self.myDomain = open(relPath / "domain.pddl") #TODO CHANGE TO PDDL DIERCTOYRY AND FIX FILENAMES
+      self.problemIndex = 0
+      
 
+        #print(self.data)
+      self._action_server = ActionServer(
+              self,
+              Goals,
+              '/goals_request',
+              self.execute_nlp_callback)
+
+
+    def execute_nlp_callback(self, goal_handle):
+        self.get_logger().info('Planning Node: Executing nlp goal...')
+        self.goals = goal_handle.goals
+        
+        self.data = self.queryDB()
+        self.myProblem = self.makeProblem(self.data,self.goals)
+        self.plan()
+        
+        result = Goals.Result()
+        result.success = True
+        return result
 
 
     
@@ -33,13 +57,10 @@ class planningNode(Node):
     def plan(self):
       self.cli = self.create_client(PlanRequest, 'plan_request')
       self.req = PlanRequest.Request()
-      relPath = Path.cwd()
+     
 
-      d = open (relPath / "domain.pddl") #TODO CHANGE TO PDDL DIERCTOYRY AND FIX FILENAMES
-      #p = open (relPath / "pb1.pddl")
-
-      self.req.domain = d.read()
-      self.req.problem = p.read()
+      self.req.domain = myDomain.read() #MERGE OPEN AND READ
+      self.req.problem = myProblem.read()
       self.req.format = "pddl"
       self.req.extensions = ['patterns']
 
@@ -110,16 +131,43 @@ class planningNode(Node):
         if goal.type == "bring":
           person = ""
           if goal.destination.type == "user":
-            person = "user"
+            person = "user" #its gonna be fucked fix it
           if goal.destination.type == "person":
             person = goal.destination.name
           if goal.destination.type == "office":
             raise Exception("BRING TO OFFICE NOT YET IMPLEMENTED")
           
-          initList.append("(personNeed " + person + goal.destination.)
-          content = goal.object
-          pass
-      
+          initList.append("(personNeed " + person + goal.object + ")") #rename probably..
+          goalList.append("(personHas " + person + " " + goal.object + ")")
+          #content = goal.object
+        f.write("(define (problem " + "problem" + self.problemIndex + ")\n")
+        problemIndex = problemIndex + 1
+        f.write("(:domain office)\n")
+        f.write("(:objects\n")
+  
+        for line in objList:
+          f.write(line)
+
+        f.write("(:init\n")
+
+        for line in initList:
+          f.write(line)  
+
+        f.write(")\n")
+        f.write("(:goal (and\n")
+
+        for line in goalList:
+          f.write(line)
+
+        f.write("\t))\n")
+        f.write(")\n")
+
+        fileName = "problem" + str(problemIndex-1) + ".pddl"
+        problemFile = open(relPath / fileName ) #TODO CHANGE TO PDDL DIERCTOYRY 
+
+
+      return problemFile #RETURN PROBLEM FILE
+                
     
 
       
