@@ -3,6 +3,8 @@
 # Request
 string kind
 string name
+string policy
+uint32 minsize
 ---
 # Result
 geometry_msgs/Point position
