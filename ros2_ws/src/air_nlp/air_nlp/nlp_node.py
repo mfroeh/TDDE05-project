@@ -134,9 +134,9 @@ class NlpNode(Node):
         model_dir = os.path.expanduser(
             '~') + "/TDDE05/ros2_ws/src/air_nlp/air_nlp/airproject_model/"
         self.args = get_args(model_dir)
-        data_dir = os.path.expanduser(
-            '~') + "/TDDE05/ros2_ws/src/air_nlp/air_nlp/data"
-        self.args.data_dir = data_dir
+        # data_dir = os.path.expanduser(
+        #    '~') + "/TDDE05/ros2_ws/src/air_nlp/air_nlp/data"
+        #self.args.data_dir = data_dir
         self.device = get_device()
         self.model = load_model(model_dir, self.args, self.device)
 
