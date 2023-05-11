@@ -25,9 +25,9 @@ class planningNode(Node):
 
       self.group = ReentrantCallbackGroup()
 
-      relPath = Path.cwd()
+      self.relPath = Path.cwd()
       self.path = ""
-      self.myDomain = open(relPath / "domain.pddl") #TODO CHANGE TO PDDL DIERCTOYRY AND FIX FILENAMES
+      self.myDomain = open(self.relPath / "domain.pddl") #TODO CHANGE TO PDDL DIERCTOYRY AND FIX FILENAMES
       self.problemIndex = 0
       
 
@@ -41,10 +41,16 @@ class planningNode(Node):
 
     def execute_nlp_callback(self, goal_handle):
         self.get_logger().info('Planning Node: Executing nlp goal...')
-        self.goals = goal_handle.goals
+        self.goals = goal_handle.request.goals
+
+        self.get_logger().info("goals got")
         
         self.data = self.queryDB()
+        
+        self.get_logger().info("data base queried ")
+
         self.myProblem = self.makeProblem(self.data,self.goals)
+        self.get_logger().info("problem got ")
         self.plan()
         
         result = Goals.Result()
@@ -59,8 +65,8 @@ class planningNode(Node):
       self.req = PlanRequest.Request()
      
 
-      self.req.domain = myDomain.read() #MERGE OPEN AND READ
-      self.req.problem = myProblem.read()
+      self.req.domain = self.myDomain.read() #MERGE OPEN AND READ
+      self.req.problem = self.myProblem.read()
       self.req.format = "pddl"
       self.req.extensions = ['patterns']
 
@@ -81,6 +87,9 @@ class planningNode(Node):
       future = cli.call_async(req)
       rclpy.spin_until_future_complete(self,future)
       data = json.loads(future.result().result)
+
+     # unique = { each['tags'] : each for each in data }.values()
+
      
       return data
 
@@ -91,6 +100,13 @@ class planningNode(Node):
       goalList = []
       goBackToUser = False
 
+      objList.append("user - user")
+      objList.append("r - robot")
+      objList.append("coffee - content")
+      objList.append("sandwich - content")
+      initList.append("(robotEmpty r)")
+      initList.append("(robotAt r user)")
+
       vendingIndex = 0
       #PARSE DATA FOR PROBLEM FILE
       for row in self.data["results"]["bindings"]:
@@ -98,11 +114,8 @@ class planningNode(Node):
         tags= row['tags']['value']
         x=row["x"]['value']
         y=row["y"]['value']
-      #  print(classes, " - ", tags ," -- ", x ," --- ", y)
-        objList.append("user - user")
-        objList.append("r - robot")
-        initList.append("(robotEmpty r)")
-        initList.append("(robotAt r user)")
+        print(classes, " - ", tags ," -- ", x ," --- ", y)
+       
 
         if classes == "human":
           
@@ -137,33 +150,38 @@ class planningNode(Node):
           if goal.destination.type == "office":
             raise Exception("BRING TO OFFICE NOT YET IMPLEMENTED")
           
-          initList.append("(personNeed " + person + goal.object + ")") #rename probably..
+          initList.append("(personNeed " + person + " " + goal.object + ")") #rename probably..
           goalList.append("(personHas " + person + " " + goal.object + ")")
           #content = goal.object
-        f.write("(define (problem " + "problem" + self.problemIndex + ")\n")
-        problemIndex = problemIndex + 1
-        f.write("(:domain office)\n")
-        f.write("(:objects\n")
-  
-        for line in objList:
-          f.write(line)
+        
+        fileName = "problem" + str(self.problemIndex-1) + ".pddl"
 
-        f.write("(:init\n")
+        with open(fileName, 'w') as f:
+          f.write("(define (problem " + "problem" + str(self.problemIndex) + ")\n")
+          self.problemIndex += 1
+          f.write("(:domain office)\n")
+          f.write("(:objects\n")
+    
+          for line in objList:
+            f.write(line + "\n")
 
-        for line in initList:
-          f.write(line)  
+          f.write(")\n")
+          f.write("(:init\n")
 
-        f.write(")\n")
-        f.write("(:goal (and\n")
+          for line in initList:
+            f.write(line + "\n")  
 
-        for line in goalList:
-          f.write(line)
+          f.write(")\n")
+          f.write("(:goal (and\n")
 
-        f.write("\t))\n")
-        f.write(")\n")
+          for line in goalList:
+            f.write(line)
 
-        fileName = "problem" + str(problemIndex-1) + ".pddl"
-        problemFile = open(relPath / fileName ) #TODO CHANGE TO PDDL DIERCTOYRY 
+          f.write("\t))\n")
+          f.write(")\n")
+
+          
+          problemFile = open(self.relPath / fileName ) #TODO CHANGE TO PDDL DIERCTOYRY 
 
 
       return problemFile #RETURN PROBLEM FILE
