@@ -16,7 +16,7 @@ bindkey ^e copy
 # Interactive
 screen 0
 title "NLP II"
-stuff "tdde05-start; start-tdde05; ros2 topic pub /input_prompt std_msgs/msg/String "data: PROMPT" --once"
+stuff "tdde05-start; start-tdde05; ros2 topic pub /input_prompt std_msgs/msg/String \"data: PROMPT\" --once"
 
 screen 1
 title "Exploration II"
@@ -37,11 +37,11 @@ stuff "tdde05-start; start-tdde05; ros2 run ros_hypertension planner_server\015"
 
 screen 12
 title "Planner II"
-stuff "tdde05-start; start-tdde05; ros2 run air_planning planning_node\015"
+stuff "tdde05-start; start-tdde05; cd $HOME/TDDE05/ros2_ws/src/air_planning/air_planning && ros2 run air_planning planning_node\015"
 
 screen 13
 title "NLP I"
-stuff "tdde05-start; start-tdde05; ros2 run air_nlp nlp_node\015"
+stuff "tdde05-start; start-tdde05; cd $HOME/TDDE05/ros2_ws/src/air_nlp/air_nlp && ros2 run air_nlp nlp_node\015"
 
 screen 14
 title "Navigation I"
@@ -50,7 +50,8 @@ stuff "tdde05-start; start-tdde05; ros2 run air_navigation navigation_node\015"
 # Not related to what we built
 screen 20
 title "Simulator"
-stuff "tdde05-start; start-tdde05; ros2 launch air_bringup turtle.launch.py world:=office_1 \"nav2_params_file:=$HOME/TDDE05/ros2_ws/src/air_navigation_layers/nav2.yaml\"\015"
+# stuff "tdde05-start; start-tdde05; ros2 launch air_bringup turtle.launch.py world:=office_1 nav2_params_file:=$HOME/TDDE05/ros2_ws/src/air_navigation_layers/nav2.yaml\015"
+stuff "tdde05-start; start-tdde05; ros2 launch air_bringup turtle.launch.py world:=office_1\015"
 
 screen 21
 title "rviz"
