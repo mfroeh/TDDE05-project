@@ -135,7 +135,7 @@ class NlpNode(Node):
             '~') + "/TDDE05/ros2_ws/src/air_nlp/air_nlp/airproject_model/"
         self.args = get_args(model_dir)
         data_dir = os.path.expanduser(
-            '~') + "/TDDE05/ros2_ws/src/air_nlp/air_nlp/airproject_model/data"
+            '~') + "/TDDE05/ros2_ws/src/air_nlp/air_nlp/data"
         self.args.data_dir = data_dir
         self.device = get_device()
         self.model = load_model(model_dir, self.args, self.device)
@@ -168,7 +168,7 @@ class NlpNode(Node):
             self.get_logger().info("{} ".format(slot))
 
         goals = self.generate_goals(words, slots)
-        # self.send_goals(goals)
+        self.send_goals(goals)
 
     def send_goals(self, goals):
         goal_msg = Goals.Goal()
