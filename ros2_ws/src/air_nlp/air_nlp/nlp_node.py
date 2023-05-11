@@ -134,9 +134,6 @@ class NlpNode(Node):
         model_dir = os.path.expanduser(
             '~') + "/TDDE05/ros2_ws/src/air_nlp/air_nlp/airproject_model/"
         self.args = get_args(model_dir)
-        # data_dir = os.path.expanduser(
-        #    '~') + "/TDDE05/ros2_ws/src/air_nlp/air_nlp/data"
-        #self.args.data_dir = data_dir
         self.device = get_device()
         self.model = load_model(model_dir, self.args, self.device)
 
@@ -168,7 +165,10 @@ class NlpNode(Node):
             self.get_logger().info("{} ".format(slot))
 
         goals = self.generate_goals(words, slots)
-        self.send_goals(goals)
+        if len(goals):
+            self.send_goals(goals)
+        else:
+            self.get_logger().info("Could not find goals from prompt")
 
     def send_goals(self, goals):
         goal_msg = Goals.Goal()
@@ -237,7 +237,7 @@ class NlpNode(Node):
 
                     for i in range(quantity):
                         add_bring_goal(object, destination, goals)
-            elif is_destination(slot):
+            elif is_destination(slot) and len(goals):
                 goal = Goal()
                 last_goal = goals[-1]
                 goal.type = last_goal.type
@@ -245,7 +245,7 @@ class NlpNode(Node):
                 goal.destination = create_destination(word, slot)
                 add_known_person(goal.destination.name, known_people)
                 goals.append(goal)
-            elif is_object(slot):
+            elif is_object(slot) and len(goals):
                 goal = Goal()
                 last_goal = goals[-1]
                 if last_goal.type != "bring":
