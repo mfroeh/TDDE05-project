@@ -10,11 +10,11 @@
 #include "nav2_costmap_2d/layered_costmap.hpp"
 #include "nav2_costmap_2d/obstacle_layer.hpp"
 
-#include "air_lab_interfaces/msg/people.hpp"
-#include "air_lab_interfaces/msg/person.hpp"
+#include "air_interfaces/msg/people.hpp"
+#include "air_interfaces/msg/person.hpp"
 
-using air_lab_interfaces::msg::Person;
-using air_lab_interfaces::msg::People;
+using air_interfaces::msg::Person;
+using air_interfaces::msg::People;
 
 namespace air_navigation_layers
 {
