@@ -85,18 +85,42 @@ ament_target_dependencies(
 )
 target_link_libraries(tst_executor nlohmann_json TstMLExecutor)
 
-install(TARGETS position_service tst_executor
-  DESTINATION lib/${PROJECT_NAME})
+# database testing (Mawio)
+add_executable(db_server_TEST src/database.cpp) # Add new executable
+target_include_directories(db_server_TEST PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(db_server_TEST PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+ament_target_dependencies(
+    db_server_TEST
+    "rclcpp"
+    "nav_msgs"
+    "nav2_msgs"
+    "rclcpp_action"
+    "air_interfaces"
+    "tf2_ros"
+    "tf2"
+    "tf2_geometry_msgs"
+    "geometry_msgs"
+    "ros2_kdb_msgs"
+    "visualization_msgs"
+    "std_msgs"
+    "air_simple_sim_msgs"
+    )
+target_link_libraries(db_server_TEST nlohmann_json)
+
+install(TARGETS position_service tst_executor db_server_TEST
+    DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # uncomment the line when a copyright and license is not present in all source files
-  #set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # uncomment the line when this package is not in a git repo
-  #set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
+    find_package(ament_lint_auto REQUIRED)
+    # the following line skips the linter which checks for copyrights
+    # uncomment the line when a copyright and license is not present in all source files
+    #set(ament_cmake_copyright_FOUND TRUE)
+    # the following line skips cpplint (only works in a git repo)
+    # uncomment the line when this package is not in a git repo
+    #set(ament_cmake_cpplint_FOUND TRUE)
+    ament_lint_auto_find_test_dependencies()
 endif()
 
 ament_package()

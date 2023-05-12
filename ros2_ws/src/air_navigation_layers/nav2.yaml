@@ -195,7 +195,7 @@ local_costmap:
         enabled: True
       #proxemic_layer:
       #  plugin: "air_navigation_layers/ProxemicLayer"
-      #  enabled: False
+      #  enabled: True
       #passing_layer:
       #  plugin: "air_navigation_layers/PassingLayer"
       #  enabled: False
@@ -266,7 +266,7 @@ global_costmap:
         enabled: True
       #proxemic_layer:
       #  plugin: "air_navigation_layers/ProxemicLayer"
-      #  enabled: False
+      #  enabled: True
       #passing_layer:
       #  plugin: "air_navigation_layers/PassingLayer"
       #  enabled: False

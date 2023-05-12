@@ -2,6 +2,7 @@
 
 #include <list>
 #include <memory>
+#include <cmath>
 
 #include <boost/thread.hpp>
 
@@ -15,6 +16,8 @@
 
 using air_interfaces::msg::Person;
 using air_interfaces::msg::People;
+
+
 
 namespace air_navigation_layers
 {

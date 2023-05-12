@@ -4,6 +4,9 @@ from rclpy.node import Node
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
+
+#from nav2_simple_commander.costmap_2d import PyCostmap2D
+
 import tf2_geometry_msgs
 
 import json
@@ -26,7 +29,7 @@ class NavigationNode(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.msgPeople = People()
         self.header=Header()
-        self.header.frame_id = "odom"
+        self.header.frame_id = "map"
         self.msgPeople.header = self.header
         self.people_publisher = self.create_publisher(People,
             '/people', 9)
@@ -48,13 +51,13 @@ class NavigationNode(Node):
             msgPerson.name = msg.tags[0]
             msg.point.header.stamp = rclpy.time.Time().to_msg()
             try:
-                point_transformed = self.tf_buffer.transform(msg.point, "odom",timeout=rclpy.duration.Duration(seconds=1.0))
+                point_transformed = self.tf_buffer.transform(msg.point, "map",timeout=rclpy.duration.Duration(seconds=1.0))
             except TransformException as ex:
-                self.get_logger().info(f'Could not transform {msg.point} to {"odom"}: {ex}')
+                self.get_logger().info(f'Could not transform {msg.point} to {"map"}: {ex}')
                 return
-            msg.point = point_transformed
+            #msg.point = point_transformed
             
-            msgPerson.position = msg.point.point
+            msgPerson.position = point_transformed.point
             msgPerson.velocity.x=0.0
             msgPerson.velocity.y=0.0
             msgPerson.velocity.z=0.0
