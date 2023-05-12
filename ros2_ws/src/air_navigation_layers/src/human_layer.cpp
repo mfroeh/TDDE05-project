@@ -69,7 +69,7 @@ void HumanLayer::onInitialize()
         //people->header.stamp = rclcpp::Clock().now() - rclcpp::Duration::from_seconds(0.1);//make a later time
         people_list_ = *people;
         
-        //RCLCPP_INFO(node->get_logger(),"Received %ld people \n",people_list_.people.size());
+        RCLCPP_INFO(node->get_logger(),"Received %ld people \n",people_list_.people.size());
     }
     else
     {
@@ -192,7 +192,8 @@ void HumanLayer::updateCosts(
         RCLCPP_WARN(node->get_logger(), "[HUMAN_LAYER] Not enabled, skipping.");
         return;
     } */
-    auto node = node_.lock();
+
+    /* auto node = node_.lock();
             if (!node) {
                 throw std::runtime_error{"Failed to lock node"};
             }
@@ -213,8 +214,8 @@ void HumanLayer::updateCosts(
 
         for (int dx = -buffer_cells; dx <= buffer_cells; ++dx) {
             for (int dy = -buffer_cells; dy <= buffer_cells; ++dy) {
-                 unsigned int cell_x = mx + dx;//unsigned int
-                 unsigned int cell_y = my + dy;
+                int cell_x = mx + dx;//unsigned int
+                int cell_y = my + dy;
 
                 // Check if the cell is within the update window
                 if (cell_x >= min_i && cell_x < max_i && cell_y >= min_j && cell_y < max_j) 
@@ -226,8 +227,8 @@ void HumanLayer::updateCosts(
 
         unsigned char cost{master_grid.getCost(mx, my)};
         RCLCPP_INFO(node->get_logger(),"[HUMAN_LAYER] Person:  %s in x: %lf, y: %lf, cost %u \n",guy.name.c_str(),lx,ly,cost);
-    }
-    }
+    }*/
+} 
 
 }
 
