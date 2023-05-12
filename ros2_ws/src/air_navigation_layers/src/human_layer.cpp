@@ -66,9 +66,10 @@ void HumanLayer::onInitialize()
    
         if (people)
     {
+        //people->header.stamp = rclcpp::Clock().now() - rclcpp::Duration::from_seconds(0.1);//make a later time
         people_list_ = *people;
         
-        //RCLCPP_INFO(node->get_logger(),"Received %ld people \n",people_list_.people.size());
+        RCLCPP_INFO(node->get_logger(),"Received %ld people \n",people_list_.people.size());
     }
     else
     {
@@ -95,9 +96,12 @@ void HumanLayer::updateBounds(
         pt.point.y = person.position.y;
         pt.point.z = person.position.z;
         pt.header.frame_id = people_list_.header.frame_id;
-        pt.header.stamp = people_list_.header.stamp;
-        //pt.header.stamp = rclcpp::Clock().now();
+        //pt.header.stamp = people_list_.header.stamp;
+        pt.header.stamp = rclcpp::Clock().now();
+
         tf_->transform(pt, opt, global_frame);
+        //opt=pt;
+
         tpt.position.x = opt.point.x;
         tpt.position.y = opt.point.y;
         tpt.position.z = opt.point.z;
@@ -105,7 +109,9 @@ void HumanLayer::updateBounds(
         pt.point.x += person.velocity.x;
         pt.point.y += person.velocity.y;
         pt.point.z += person.velocity.z;
+
         tf_->transform(pt, opt, global_frame);
+        //opt=pt;
 
         tpt.velocity.x = opt.point.x - tpt.position.x;
         tpt.velocity.y = opt.point.y - tpt.position.y;
@@ -114,6 +120,7 @@ void HumanLayer::updateBounds(
         tpt.name = person.name;
 
         transformed_people_.push_back(tpt);
+        
         }
         catch (tf2::LookupException& ex)
         {
@@ -142,8 +149,12 @@ void HumanLayer::updateBounds(
             RCLCPP_ERROR(node->get_logger(),"Extrapolation Error: %s\n", ex.what());
             continue;
         }
-  }    
-    
+    }    
+    auto node = node_.lock();
+            if (!node) {
+                throw std::runtime_error{"Failed to lock node"};
+            }
+        RCLCPP_INFO(node->get_logger(),"[HUMAN_LAYER] We Know: %ld\n", transformed_people_.size());
 
     //updateBoundsFromPeople(min_x, min_y, max_x, max_y);
   if (first_time_)
@@ -172,8 +183,17 @@ void HumanLayer::updateCosts(
     nav2_costmap_2d::Costmap2D & master_grid,
     int min_i, int min_j, int max_i, int max_j)
 {
-    if (!enabled_) return;
-    auto node = node_.lock();
+/*     if (!enabled_)
+    {
+        auto node = node_.lock();
+            if (!node) {
+                throw std::runtime_error{"Failed to lock node"};
+            }
+        RCLCPP_WARN(node->get_logger(), "[HUMAN_LAYER] Not enabled, skipping.");
+        return;
+    } */
+
+    /* auto node = node_.lock();
             if (!node) {
                 throw std::runtime_error{"Failed to lock node"};
             }
@@ -188,14 +208,14 @@ void HumanLayer::updateCosts(
         double lx{guy.position.x}, ly{guy.position.y};
         unsigned int mx, my;
         if (!master_grid.worldToMap(lx, ly, mx, my)) {
-            //RCLCPP_WARN(node->get_logger(), "Person is outside the costmap bounds, skipping.");
+            //RCLCPP_WARN(node->get_logger(), "[HUMAN_LAYER] Person is outside the costmap bounds, skipping.");
             continue;
         }
 
         for (int dx = -buffer_cells; dx <= buffer_cells; ++dx) {
             for (int dy = -buffer_cells; dy <= buffer_cells; ++dy) {
-                 int cell_x = mx + dx;//unsigned int
-                 int cell_y = my + dy;
+                int cell_x = mx + dx;//unsigned int
+                int cell_y = my + dy;
 
                 // Check if the cell is within the update window
                 if (cell_x >= min_i && cell_x < max_i && cell_y >= min_j && cell_y < max_j) 
@@ -206,9 +226,9 @@ void HumanLayer::updateCosts(
         }
 
         unsigned char cost{master_grid.getCost(mx, my)};
-        RCLCPP_INFO(node->get_logger(),"Person:  %s in x: %lf, y: %lf, cost %u \n",guy.name.c_str(),lx,ly,cost);
-    }
-    }
+        RCLCPP_INFO(node->get_logger(),"[HUMAN_LAYER] Person:  %s in x: %lf, y: %lf, cost %u \n",guy.name.c_str(),lx,ly,cost);
+    }*/
+} 
 
 }
 

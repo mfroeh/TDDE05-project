@@ -33,6 +33,7 @@ double get_radius(double cutoff, double A, double var)
 
 namespace air_navigation_layers
 {
+    ProxemicLayer::ProxemicLayer():HumanLayer(){}
     void ProxemicLayer::onInitialize()
     {
         HumanLayer::onInitialize();
@@ -42,17 +43,30 @@ namespace air_navigation_layers
         factor_ = 5.0;
         //people_keep_time_ = rclcpp::Duration::Duration(0.75);
         enabled_ = true;
+
+        auto node = node_.lock();
+            if (!node) {
+                throw std::runtime_error{"Failed to lock node"};
+            }
+        RCLCPP_INFO(node->get_logger(),"[HUMAN_LAYER] ProxemicLayer start WORKING\n");
+
     }
 
     void ProxemicLayer::updateBounds(
-        double /* robot_x */, double /* robot_y */, double /* robot_yaw */, double * min_x,
+        double  robot_x , double robot_y, double robot_yaw, double * min_x,
         double * min_y,
         double * max_x,
         double * max_y)
     {
-/*         std::list<Person>::iterator p_it;
+        std::list<Person>::iterator p_it;
+        HumanLayer::updateBounds(robot_x,robot_y,robot_yaw,min_x,min_y,max_x,max_y);
+        /* auto node = node_.lock();
+            if (!node) {
+                throw std::runtime_error{"Failed to lock node"};
+            }
+        RCLCPP_INFO(node->get_logger(),"[HUMAN_LAYER] We Know: %ld\n", transformed_people_.size());
 
-        for (p_it = transformed_people_.begin(); p_it != transformed_people_.end(); ++p_it)
+ */        for (p_it = transformed_people_.begin(); p_it != transformed_people_.end(); ++p_it)
         {
             Person person = *p_it;
 
@@ -64,7 +78,7 @@ namespace air_navigation_layers
             *min_y = std::min(*min_y, person.position.y - point);
             *max_x = std::max(*max_x, person.position.x + point);
             *max_y = std::max(*max_y, person.position.y + point);
-        }  */
+        } 
     }
 
     void ProxemicLayer::updateCosts(nav2_costmap_2d::Costmap2D & master_grid, int min_i, int min_j, int max_i, int max_j)
@@ -72,7 +86,7 @@ namespace air_navigation_layers
         //boost::recursive_mutex::scoped_lock lock(lock_);
         /* if (!enabled_) return;
         if (people_list_.people.size() == 0)return;
-        if (cutoff_ >= amplitude_)return;
+        if (cutoff_ >= amplitude_)return;*/
 
         std::list<Person>::iterator p_it;
         //nav2_costmap_2d::Costmap2D* costmap = layered_costmap_->getCostmap();
@@ -152,7 +166,7 @@ namespace air_navigation_layers
                 master_grid.setCost(i + dx, j + dy, std::max(cvalue, old_cost));
             }
             }
-        }  */
+        }  
     }
 
 
