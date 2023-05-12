@@ -1,7 +1,7 @@
-#include "rclcpp/rclcpp.hpp"
-#include "nav_msgs/msg/odometry.hpp"
+#include <rclcpp/rclcpp.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+
 #include "air_interfaces/srv/get_position.hpp"
-#include "exploration_constants.hpp"
 
 using namespace rclcpp;
 using namespace std::placeholders;
@@ -9,6 +9,9 @@ using namespace std::placeholders;
 using geometry_msgs::msg::Point;
 using nav_msgs::msg::Odometry;
 using ServiceT = air_interfaces::srv::GetPosition;
+
+char const *POSITION_SERVICE_NODE = "position_service";
+char const *POSITION_SERVICE_TOPIC = "get_position";
 
 class PositionService : public Node
 {
