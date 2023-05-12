@@ -1,0 +1,10 @@
+{
+  "type": "tst node",
+  "key": "drive-to",
+  "status": "released",
+  "desc": "",
+  "params": [{ "key": "p", "type": "point" }],
+  "node-type": "terminal",
+  "required-params-for-execution": ["p"],
+  "node-resources": []
+}

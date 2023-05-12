@@ -1,0 +1,11 @@
+{
+    "type": "tst node",
+    "key": "dock",
+    "status": "released",
+    "desc": "Dock a robot.",
+    "tags": ["control"],
+    "params": [],
+    "required-params-for-execution": [],
+    "node-type": "terminal",        
+    "node-resources": []
+}

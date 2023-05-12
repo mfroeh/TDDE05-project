@@ -1,0 +1,15 @@
+{
+  "type": "tst node",
+  "key": "explore",
+  "status": "released",
+  "desc": "",
+  "params": [
+    { "key": "kind", "type": "string", "desc": "human|vendingmachine|office" },
+    { "key": "name", "type": "string", "desc": "The name of the thing" },
+    { "key": "policy", "type": "string", "desc": "nearest|biggest" },
+    { "key": "minsize", "type": "int32", "desc": "Minimum size of frontiers" }
+  ],
+  "node-type": "terminal",
+  "required-params-for-execution": ["kind", "name", "minsize"],
+  "node-resources": []
+}

@@ -41,7 +41,7 @@ struct Frontier
     /// @brief Construct a new Frontier object
     /// @param indices The indices of the frontier points in the occupancy map
     /// @param map The occupancy map
-    Frontier(std::vector<unsigned> const &indices, Map const &map) : indices{indices}, centroid{}, points{}, size{indices.size()}
+    Frontier(std::vector<unsigned> const &indices, Map const &map) : size{indices.size()}, indices{indices}
     {
         for (auto &mp : indices)
         {
@@ -58,8 +58,8 @@ struct Frontier
         centroid.y /= indices.size();
     }
 
-    std::vector<Point> points;
-    Point centroid;
+    std::vector<Point> points{};
+    Point centroid{};
     size_t size;
 
 private:
