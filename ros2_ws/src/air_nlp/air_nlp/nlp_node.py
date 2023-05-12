@@ -40,12 +40,8 @@ def is_destination(x):
 
 
 def get_destination_type(x):
-    if is_person(x):
-        return "person"
-    elif is_office(x):
-        return "office"
-    elif is_user(x):
-        return "user"
+    if is_destination(x):
+        return remove_prefix(x, 'B-')
     else:
         return "invalid"
 
@@ -111,6 +107,12 @@ def remove_suffix(s, suffix):
     return s
 
 
+def remove_prefix(s, prefix):
+    if prefix and s.startswith(prefix):
+        return s[len(prefix):]
+    return s
+
+
 def add_known_person(name, people):
     person = Destination()
     person.type = "person"
@@ -130,6 +132,7 @@ class NlpNode(Node):
 
     def __init__(self):
         super().__init__('nlp_node')
+        self.get_logger().info('Starting Initialization')
 
         model_dir = os.path.expanduser(
             '~') + "/TDDE05/ros2_ws/src/air_nlp/air_nlp/airproject_model/"
@@ -198,9 +201,8 @@ class NlpNode(Node):
         goals = []
         known_people = []
 
-        for i in range(len(slots) - 1):
-            if i >= len(slots):
-                break
+        i = 0
+        while i < len(slots):
             slot = slots[i]
             word = words[i]
             if slot == "B-goal.goto":
@@ -254,6 +256,7 @@ class NlpNode(Node):
                 goal.object = create_object(word)
                 goal.destination = last_goal.destination
                 goals.append(goal)
+            i += 1
 
         for goal in goals:
             if goal.type == "goto":
