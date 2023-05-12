@@ -194,8 +194,8 @@ void HumanLayer::updateCosts(
 
         for (int dx = -buffer_cells; dx <= buffer_cells; ++dx) {
             for (int dy = -buffer_cells; dy <= buffer_cells; ++dy) {
-                unsigned int cell_x = mx + dx;
-                unsigned int cell_y = my + dy;
+                 int cell_x = mx + dx;//unsigned int
+                 int cell_y = my + dy;
 
                 // Check if the cell is within the update window
                 if (cell_x >= min_i && cell_x < max_i && cell_y >= min_j && cell_y < max_j) 
