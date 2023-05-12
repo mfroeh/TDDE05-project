@@ -2,6 +2,7 @@
 #include <thread>
 #include <memory>
 #include <vector>
+#include <deque>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
@@ -41,6 +42,8 @@ public:
     TstML::Executor::ExecutionStatus abort() override;
 
 private:
+    std::deque<Frontier> frontiers{};
+
     std::shared_ptr<rclcpp::Node> node{};
     rclcpp::executors::MultiThreadedExecutor executor{};
     std::thread executor_thread{};
@@ -51,6 +54,7 @@ private:
     geometry_msgs::msg::Point pos{};
 
     rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SharedPtr navigate_client{};
+    rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr goal_handle{};
 
     std::unique_ptr<tf2_ros::Buffer> tf_buffer{};
     std::shared_ptr<tf2_ros::TransformListener> tf_listener{};
@@ -59,8 +63,10 @@ private:
 
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr visualization_pub{};
 
-    // private:
-    void explore_frontier(Map map);
+private:
+    void generate_frontiers(Map map);
+
+    void drive_to_next_frontier();
 
     /// @brief Updates the current position
     /// @param msg The odometry message
@@ -72,7 +78,7 @@ private:
 
     /// @brief Visualizes the points of all the frontiers and their centroids
     /// @param frontiers
-    void visualize_frontier(std::vector<Frontier> frontiers);
+    void visualize_frontier(std::deque<Frontier> frontiers);
 
     void handle_drive_response(std::shared_future<rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr> future);
 

@@ -70,11 +70,10 @@ ExploreExecutor::~ExploreExecutor()
 
 TstML::Executor::ExecutionStatus ExploreExecutor::start()
 {
-
-    // TODO: Try to get person from database and act accordingly
-
+    // TODO: If not found the guy
     assert(map != nullptr);
-    explore_frontier(Map{map});
+    generate_frontiers(Map{map});
+    drive_to_next_frontier();
     return TstML::Executor::ExecutionStatus::Started();
 }
 
@@ -90,22 +89,18 @@ TstML::Executor::ExecutionStatus ExploreExecutor::resume()
 
 TstML::Executor::ExecutionStatus ExploreExecutor::stop()
 {
-    // TODO
-    // navigate_client->async_cancel_goal(goal_handle);
+    navigate_client->async_cancel_goal(goal_handle);
     return TstML::Executor::ExecutionStatus::Finished();
 }
 
 TstML::Executor::ExecutionStatus ExploreExecutor::abort()
 {
-    // TODO
-    // navigate_client->async_cancel_goal(goal_handle);
+    navigate_client->async_cancel_goal(goal_handle);
     return TstML::Executor::ExecutionStatus::Aborted();
 }
 
-void ExploreExecutor::explore_frontier(Map map)
+void ExploreExecutor::generate_frontiers(Map map)
 {
-    using namespace std::placeholders;
-
     // Read in the parameters of the node
     std::string kind{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "kind").toString().toStdString()};
     std::string name{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "name").toString().toStdString()};
@@ -113,15 +108,8 @@ void ExploreExecutor::explore_frontier(Map map)
     unsigned minsize{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "minsize").toUInt()};
 
     RCLCPP_INFO(node->get_logger(), "Launching WFD");
-    auto frontiers{WFD(Map{map}, minsize)};
-    RCLCPP_INFO_STREAM(node->get_logger(), "Found " << frontiers.size() << " frontiers!");
-
-    if (frontiers.empty())
-    {
-        RCLCPP_INFO(node->get_logger(), "No frontiers left to explore, aborting...");
-        executionFinished(TstML::Executor::ExecutionStatus::Aborted());
-        return;
-    }
+    auto new_frontiers{WFD(Map{map}, minsize)};
+    RCLCPP_INFO_STREAM(node->get_logger(), "Found " << new_frontiers.size() << " frontiers!");
 
     // Ascending by distance to robot
     auto nearest{[this](Frontier const &a, Frontier const &b)
@@ -132,16 +120,31 @@ void ExploreExecutor::explore_frontier(Map map)
                  { return a.size > b.size; }};
 
     if (policy == "nearest")
-        std::sort(frontiers.begin(), frontiers.end(), nearest);
+        std::sort(new_frontiers.begin(), new_frontiers.end(), nearest);
     else if (policy == "biggest")
-        std::sort(frontiers.begin(), frontiers.end(), biggest);
+        std::sort(new_frontiers.begin(), new_frontiers.end(), biggest);
     else
-        std::sort(frontiers.begin(), frontiers.end(), nearest);
+        std::sort(new_frontiers.begin(), new_frontiers.end(), nearest);
 
-    Point p{frontiers[0].centroid};
+    frontiers = {new_frontiers.begin(), new_frontiers.end()};
+}
+
+void ExploreExecutor::drive_to_next_frontier()
+{
+    using namespace std::placeholders;
+
+    if (frontiers.empty())
+    {
+        RCLCPP_INFO(node->get_logger(), "No frontiers left to explore, aborting...");
+        executionFinished(TstML::Executor::ExecutionStatus::Aborted());
+        return;
+    }
+
     visualize_frontier(frontiers);
 
-    // TODO: Go to the frontier using wilsons service
+    Point p{frontiers.front().centroid};
+    frontiers.pop_front();
+
     NavigateToPose::Goal msg{};
     msg.pose.pose.position = p;
     msg.pose.header.frame_id = "map";
@@ -175,7 +178,7 @@ void ExploreExecutor::handle_odom(Odometry::SharedPtr const msg)
     }
 }
 
-void ExploreExecutor::visualize_frontier(std::vector<Frontier> frontiers)
+void ExploreExecutor::visualize_frontier(std::deque<Frontier> frontiers)
 {
     using std_msgs::msg::ColorRGBA;
     using visualization_msgs::msg::Marker;
@@ -215,18 +218,22 @@ void ExploreExecutor::visualize_frontier(std::vector<Frontier> frontiers)
 void ExploreExecutor::handle_drive_response(
     std::shared_future<rclcpp_action::ClientGoalHandle<NavigateToPose>::SharedPtr> future)
 {
-    if (!future.get())
+    goal_handle = future.get();
+    if (!goal_handle)
     {
-        RCLCPP_ERROR(node->get_logger(), "Navigation was rejected, aborting goal...");
-        // abort(goal_handle);
+        executionFinished(TstML::Executor::ExecutionStatus::Aborted());
+        RCLCPP_ERROR(node->get_logger(), "Drive: Goal was rejected, aborting goal...");
     }
     else
-        RCLCPP_INFO(node->get_logger(), "Goal accepted by server, waiting for result");
+    {
+        RCLCPP_INFO(node->get_logger(), "Drive: Goal accepted by server, waiting for result");
+    }
 }
 
 void ExploreExecutor::handle_drive_feedback(rclcpp_action::ClientGoalHandle<NavigateToPose>::SharedPtr,
                                             const std::shared_ptr<const NavigateToPose::Feedback>)
 {
+    // TODO: Implement timeout which cancels goal if havn't moved
     // RCLCPP_INFO(node->get_logger(), "Remaining distance to goal: %f (%ds)", feedback->distance_remaining, feedback->estimated_time_remaining.sec);
 }
 
@@ -236,17 +243,24 @@ void ExploreExecutor::handle_drive_result(rclcpp_action::ClientGoalHandle<Naviga
     {
     case rclcpp_action::ResultCode::SUCCEEDED:
         RCLCPP_INFO(node->get_logger(), "Drive: Goal was succeeded");
-        explore_frontier(Map{map});
-        break;
+        // TODO: If not found guy
+        // If guy found, executionFinished(success);
+        generate_frontiers(Map{map});
+        drive_to_next_frontier();
+        return;
     case rclcpp_action::ResultCode::ABORTED:
         RCLCPP_ERROR(node->get_logger(), "Drive: Goal was aborted: %d", static_cast<int>(result.code));
-        explore_frontier(Map{map});
+        executionFinished(TstML::Executor::ExecutionStatus::Aborted());
         return;
     case rclcpp_action::ResultCode::CANCELED:
         RCLCPP_ERROR(node->get_logger(), "Drive: Goal was canceled");
+        // TODO: If not found guy
+        // If guy found, executionFinished(success);
+        drive_to_next_frontier();
         return;
     default:
         RCLCPP_ERROR(node->get_logger(), "Unknown result code");
+        executionFinished(TstML::Executor::ExecutionStatus::Aborted());
         return;
     }
 }
