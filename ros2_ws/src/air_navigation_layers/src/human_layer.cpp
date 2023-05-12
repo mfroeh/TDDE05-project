@@ -36,6 +36,18 @@ double Gaussian_(double distance, double amplitude, double sigma) {
     return amplitude * std::exp(-(distance * distance) / (2 * sigma * sigma));
 }
 
+//TODO: Build a funciton using Bresenham's line algorithm
+/// @brief Get all the cell between human and robotic as a line
+/// @param rx The x of robotic
+/// @param ry The y of robotic
+/// @param hx The x of human
+/// @param hy The y of human
+/// @return an Array with all cell ?
+
+//TODO: Build a funciton to check if human and robot are blocked by wall -> wall is only one has LETHAL_OBSTACLE
+/// @brief check if human and robot are blocked by wall
+/// @return True if there is a wall, false otherwise
+
 namespace air_navigation_layers
 {
     HumanLayer::HumanLayer()
