@@ -1,0 +1,37 @@
+{
+    "children": [
+        {
+            "children": [
+            ],
+            "common_params": {
+            },
+            "name": "drive-to",
+            "params": {
+                "p": {
+                    "rostype": "Point",
+                    "x": 1,
+                    "y": 20,
+                    "z": 0
+                },
+                "heading": 1
+            }
+        },
+        {
+            "children": [
+            ],
+            "common_params": {
+            },
+            "name": "explore",
+            "params": {
+                "radius": 20,
+                "a": 0,
+                "b": 1
+            }
+        }
+    ],
+    "common_params": {
+    },
+    "name": "seq",
+    "params": {
+    }
+}

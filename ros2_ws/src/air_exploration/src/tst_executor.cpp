@@ -4,6 +4,8 @@
 #include <QString>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QUrl>
+#include <QFileInfo>
 
 #include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <TstML/Executor/DefaultNodeExecutor/Concurrent.h>
@@ -45,8 +47,7 @@ public:
         using namespace std::placeholders;
 
         // TODO: Change this to load our specific tsts
-        tst_registry->loadDirectory(QString::fromStdString(ament_index_cpp::get_package_prefix("air_tst") + "/share/air_tst/configs"));
-
+        tst_registry->loadDirectory(QFileInfo("./tst").absoluteFilePath());
         service = create_service<ExecuteTst>(EXECUTE_TST_SERVICE_TOPIC, std::bind(&Self::execute, this, _1, _2));
 
         CallbackGroup::SharedPtr group{create_callback_group(CallbackGroupType::Reentrant)};
@@ -58,11 +59,9 @@ public:
         // Setup the executors
         tst_executor_registry->registerNodeExecutor<DefaultNodeExecutor::Sequence>(tst_registry->model("seq"));
         tst_executor_registry->registerNodeExecutor<DefaultNodeExecutor::Concurrent>(tst_registry->model("conc"));
-        tst_executor_registry->registerNodeExecutor<ExploreExecutor>(tst_registry->model("exploration"));
+        tst_executor_registry->registerNodeExecutor<ExploreExecutor>(tst_registry->model("explore"));
 
         // TODO: Register driver
-        // tst_executor_registry->registerNodeExecutor<ExploreExecutor>(tst_registry->model("drive-to"));
-
         // tst_executor_registry->registerNodeExecutor<UndockExecutor>(
         //     tst_registry->model("undock"));
         // tst_executor_registry->registerNodeExecutor<DockExecutor>(
@@ -82,24 +81,34 @@ private:
 
     std::shared_ptr<TSTNodeModelsRegistry> tst_registry;
     std::shared_ptr<NodeExecutorRegistry> tst_executor_registry;
-    std::shared_ptr<Executor::Executor> tst_executor;
+    std::unique_ptr<Executor::Executor> tst_executor;
 
     void execute(std::shared_ptr<ExecuteTst::Request> const request, std::shared_ptr<ExecuteTst::Response> response)
     {
+        std::string tst_filename{request->tst_file};
+
         std::string tst_json{request->tst};
         RCLCPP_INFO(get_logger(), "Received TST:\n%s", tst_json.c_str());
 
-        QJsonDocument tst_document{QJsonDocument::fromJson(QString::fromStdString(tst_json).toUtf8())};
-        RCLCPP_INFO(get_logger(), "Created QJsonDocument from json");
-
-        TstML::TSTNode *tst_node{TSTNode::fromJson(tst_document.object(), tst_registry.get())};
-        RCLCPP_INFO(get_logger(), "Loaded TSTNode from QJsonDocument");
+        TstML::TSTNode *tst_node{};
+        if (tst_filename != "")
+        {
+            tst_node = TstML::TSTNode::load(QUrl::fromLocalFile(QString::fromStdString(tst_filename)), tst_registry.get());
+            RCLCPP_INFO(get_logger(), "Loaded TSTNode from File");
+        }
+        else
+        {
+            QJsonDocument tst_document{QJsonDocument::fromJson(QString::fromStdString(tst_json).toUtf8())};
+            RCLCPP_INFO(get_logger(), "Created QJsonDocument from json");
+            tst_node = TSTNode::fromJson(tst_document.object(), tst_registry.get());
+            RCLCPP_INFO(get_logger(), "Loaded TSTNode from QJsonDocument");
+        }
 
         if (tst_node == nullptr)
             RCLCPP_ERROR(get_logger(), "TSTNode is null!");
 
         // Create an executor using the executors defined in tst_executor_registry
-        tst_executor = std::make_shared<Executor::Executor>(tst_node, tst_executor_registry.get());
+        tst_executor = std::make_unique<Executor::Executor>(tst_node, tst_executor_registry.get());
 
         // Start execution
         tst_executor->start();

@@ -1,0 +1,17 @@
+{
+  "type": "tst node",
+  "key": "seq",
+  "status": "released",
+  "desc": "Causes the children of this node to be executed in sequence.",
+  "tags": ["control"],
+  "params": [
+    {
+      "key": "repeat-count",
+      "type": "int32",
+      "desc": "Number of time to repeat. If not set, assumed to be equal to 1"
+    }
+  ],
+  "node-type": "non-terminal",
+  "required-params-for-execution": [],
+  "node-resources": []
+}

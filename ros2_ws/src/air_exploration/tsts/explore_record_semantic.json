@@ -1,0 +1,57 @@
+{
+    "children": [
+        {
+            "children": [
+            ],
+            "common_params": {
+            },
+            "name": "drive-to",
+            "params": {
+                "p": {
+                    "rostype": "Point",
+                    "x": 1,
+                    "y": 2,
+                    "z": 0
+                }
+            }
+        },
+        {
+            "children": [
+                {
+                    "children": [
+                    ],
+                    "common_params": {
+                    },
+                    "name": "explore",
+                    "params": {
+                        "a": 0,
+                        "b": 1,
+                        "radius": 3
+                    }
+                },
+                {
+                    "children": [
+                    ],
+                    "common_params": {
+                    },
+                    "name": "record-semantic",
+                    "params": {
+                        "graphname": "semanticobject",
+                        "topic": "semantic_sensor"
+                    }
+                }
+            ],
+            "common_params": {
+            },
+            "name": "conc",
+            "params": {
+                "stop-on-first": true
+            }
+        }
+    ],
+    "common_params": {
+    },
+    "name": "seq",
+    "params": {
+    }
+}

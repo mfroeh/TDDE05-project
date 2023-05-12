@@ -20,7 +20,7 @@ stuff "tdde05-start; start-tdde05; ros2 topic pub /input_prompt std_msgs/msg/Str
 
 screen 1
 title "Exploration II"
-stuff "tdde05-start; start-tdde05; ros2 action send_goal explore air_interfaces/Explore '{name: \"Hello\", kind: \"Object\", policy: \"biggest\", minsize: 15}'"
+stuff "tdde05-start; start-tdde05; ros2 service call /execute_tst air_interfaces/srv/ExecuteTst '{tst_file: \"$HOME/TDDE05/ros2_ws/src/air_exploration/tsts/explore.json\"}'"
 
 screen 2
 title "Insert objects into database" 
@@ -29,7 +29,7 @@ stuff "tdde05-start; start-tdde05; ros2 run air_simple_sim generate_rdf office_1
 # Always run
 screen 10
 title "Exploration I"
-stuff "tdde05-start; ros2 run air_exploration exploration_server\015"
+stuff "tdde05-start; cd $HOME/TDDE05/ros2_ws/src/air_exploration && ros2 run air_exploration tst_executor\015"
 
 screen 11
 title "Planner I"

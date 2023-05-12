@@ -71,7 +71,11 @@ ExploreExecutor::~ExploreExecutor()
 TstML::Executor::ExecutionStatus ExploreExecutor::start()
 {
     // TODO: If not found the guy
-    assert(map != nullptr);
+
+    while (!map)
+    {
+        RCLCPP_INFO(node->get_logger(), "Waiting for map...");
+    }
     generate_frontiers(Map{map});
     drive_to_next_frontier();
     return TstML::Executor::ExecutionStatus::Started();
@@ -106,6 +110,8 @@ void ExploreExecutor::generate_frontiers(Map map)
     std::string name{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "name").toString().toStdString()};
     std::string policy{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "policy").toString().toStdString()};
     unsigned minsize{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "minsize").toUInt()};
+
+    RCLCPP_INFO(node->get_logger(), "Generating new frontiers with parameters: kind=%s, name=%s, policy=%s, minsize=%u", kind.c_str(), name.c_str(), policy.c_str(), minsize);
 
     RCLCPP_INFO(node->get_logger(), "Launching WFD");
     auto new_frontiers{WFD(Map{map}, minsize)};
