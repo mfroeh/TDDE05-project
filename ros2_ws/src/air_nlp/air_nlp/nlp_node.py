@@ -222,7 +222,7 @@ class NlpNode(Node):
                     add_known_person(destination.name, known_people)
 
             # Handle a bring goal
-            
+
             elif slot == "B-goal.bring":
 
                 object = find_object(i, words, slots) # Finds and pops the nearest object
@@ -248,7 +248,7 @@ class NlpNode(Node):
                             # generate the bring goal for the latest known person
 
                             quantity = find_quantity(words[i:], slots[i:])
-                            for i in range(quantity):
+                            for k in range(quantity):
                                 add_bring_goal(object, known_people[-1], goals)
                 else:
 
@@ -257,9 +257,9 @@ class NlpNode(Node):
                     quantity = find_quantity(words[i:], slots[i:])
                     add_known_person(destination.name, known_people)
 
-                    for i in range(quantity):
+                    for k in range(quantity):
                         add_bring_goal(object, destination, goals)
-            
+
             # Handle left over destinations by cloning latest goal
 
             elif is_destination(slot) and len(goals):
