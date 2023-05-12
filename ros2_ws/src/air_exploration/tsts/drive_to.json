@@ -1,0 +1,35 @@
+{
+  "children": [
+    {
+      "children": [],
+      "common_params": {},
+      "name": "drive-to",
+      "params": {
+        "p": {
+          "rostype": "Point",
+          "x": 0,
+          "y": -2,
+          "z": 0
+        },
+        "use-motion-planner": false
+      }
+    },
+    {
+      "children": [],
+      "common_params": {},
+      "name": "drive-to",
+      "params": {
+        "p": {
+          "rostype": "Point",
+          "x": 0,
+          "y": 2,
+          "z": 0
+        },
+        "use-motion-planner": true
+      }
+    }
+  ],
+  "common_params": {},
+  "name": "seq",
+  "params": {}
+}

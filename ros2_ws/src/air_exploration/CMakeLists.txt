@@ -42,7 +42,9 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED) # Visualization of frontiers
 find_package(std_msgs REQUIRED) # Colors
 
-# add include dirs
+find_package(TstML REQUIRED) # TST executors
+find_package(std_srvs REQUIRED) # TST executors
+
 # position_service
 add_executable(position_service src/position_service.cpp)
 target_include_directories(position_service PUBLIC
@@ -56,6 +58,32 @@ ament_target_dependencies(
   "nav2_msgs"
   "geometry_msgs"
 )
+
+# tst_executor
+add_executable(tst_executor src/tst_executor src/explore_executor src/frontier) # Add new executable
+target_include_directories(tst_executor PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(tst_executor PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+ament_target_dependencies(
+  tst_executor
+  "rclcpp"
+  "nav_msgs"
+  "nav2_msgs"
+  "rclcpp_action"
+  "air_interfaces"
+  "tf2_ros"
+  "tf2"
+  "tf2_geometry_msgs"
+  "geometry_msgs"
+  "ros2_kdb_msgs"
+  "visualization_msgs"
+  "std_msgs"
+  "air_simple_sim_msgs"
+  "TstML"
+  "std_srvs"
+)
+target_link_libraries(tst_executor nlohmann_json TstMLExecutor)
 
 # database testing (Mawio)
 add_executable(db_server_TEST src/database.cpp) # Add new executable
@@ -81,31 +109,7 @@ ament_target_dependencies(
     )
 target_link_libraries(db_server_TEST nlohmann_json)
 
-# exploration_server
-add_executable(exploration_server src/exploration_server src/frontier) # Add new executable
-target_include_directories(exploration_server PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
-target_compile_features(exploration_server PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-ament_target_dependencies(
-    exploration_server
-    "rclcpp"
-    "nav_msgs"
-    "nav2_msgs"
-    "rclcpp_action"
-    "air_interfaces"
-    "tf2_ros"
-    "tf2"
-    "tf2_geometry_msgs"
-    "geometry_msgs"
-    "ros2_kdb_msgs"
-    "visualization_msgs"
-    "std_msgs"
-    "air_simple_sim_msgs"
-    )
-target_link_libraries(exploration_server nlohmann_json)
-
-install(TARGETS position_service exploration_server db_server_TEST
+install(TARGETS position_service tst_executor db_server_TEST
     DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)

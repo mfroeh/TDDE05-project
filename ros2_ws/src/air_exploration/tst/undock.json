@@ -1,0 +1,11 @@
+{
+    "type": "tst node",
+    "key": "undock",
+    "status": "released",
+    "desc": "undock a robot.",
+    "tags": ["control"],
+    "params": [],
+    "required-params-for-execution": [],
+    "node-type": "terminal",        
+    "node-resources": []
+}

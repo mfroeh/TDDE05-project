@@ -1,0 +1,31 @@
+{
+  "common_params": {},
+  "name": "seq",
+  "params": {},
+  "children": [
+    {
+      "children": [],
+      "common_params": {},
+      "name": "explore",
+      "params": {
+        "kind": "office",
+        "name": "George",
+        "policy": "biggest",
+        "minsize": 15
+      }
+    },
+    {
+      "children": [],
+      "common_params": {},
+      "name": "drive-to",
+      "params": {
+        "p": {
+          "rostype": "Point",
+          "x": 0.5,
+          "y": 2.5,
+          "z": 0
+        }
+      }
+    }
+  ]
+}
