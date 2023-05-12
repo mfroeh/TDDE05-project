@@ -36,17 +36,9 @@ double Gaussian_(double distance, double amplitude, double sigma) {
     return amplitude * std::exp(-(distance * distance) / (2 * sigma * sigma));
 }
 
-//TODO: Build a funciton using Bresenham's line algorithm
-/// @brief Get all the cell between human and robotic as a line
-/// @param rx The x of robotic
-/// @param ry The y of robotic
-/// @param hx The x of human
-/// @param hy The y of human
-/// @return an Array with all cell ?
 
-//TODO: Build a funciton to check if human and robot are blocked by wall -> wall is only one has LETHAL_OBSTACLE
-/// @brief check if human and robot are blocked by wall
-/// @return True if there is a wall, false otherwise
+
+
 
 namespace air_navigation_layers
 {
@@ -61,6 +53,7 @@ void HumanLayer::onInitialize()
 {
     current_ = true;
     first_time_ = true;
+    first_time_costmap_=true;
     auto node = node_.lock();
     if (!node) {
         throw std::runtime_error{"Failed to lock node"};
@@ -95,13 +88,16 @@ void HumanLayer::onInitialize()
 } 
 
 void HumanLayer::updateBounds(
-    double /* robot_x */, double /* robot_y */, double /* robot_yaw */, double * min_x,
+    double robot_x, double robot_y, double /* robot_yaw */, double * min_x,
     double * min_y,
     double * max_x,
     double * max_y)
 {
     boost::recursive_mutex::scoped_lock lock(lock_);
     std::string global_frame = layered_costmap_->getGlobalFrameID();
+    robot_x_=robot_x;
+    robot_y_=robot_y;
+
     transformed_people_.clear();
     for(auto const& person : people_list_.people){
         Person tpt;
@@ -209,10 +205,22 @@ void HumanLayer::updateCosts(
         return;
     } */
 
+    if (first_time_costmap_)//save the map before implement human cost
+  {
+    init_map=master_grid;
+    first_time_ = false;
+  }
+    else{//refresh the costmap into the init
+        master_grid = init_map;
+    }
+
     auto node = node_.lock();
             if (!node) {
                 throw std::runtime_error{"Failed to lock node"};
             }
+
+    unsigned int robot_mx, robot_my;
+    master_grid.worldToMap(robot_x_, robot_y_, robot_mx, robot_my);
 
     //double buffer_size = 0.2; // Buffer size in meters
     double inner_radius = 0.0; // Inner radius in meters
@@ -227,17 +235,20 @@ void HumanLayer::updateCosts(
 
     for(auto const& guy : transformed_people_)
     {
+
         double lx{guy.position.x}, ly{guy.position.y};
-        unsigned int mx, my;
-        if (!master_grid.worldToMap(lx, ly, mx, my)) {  // GLOBAL_COSTMAP
+        unsigned int person_mx, person_my;
+        if (!master_grid.worldToMap(lx, ly, person_mx, person_my)) {  // GLOBAL_COSTMAP
             //RCLCPP_WARN(node->get_logger(), "Person is outside the costmap bounds, skipping.");
             continue;
         }
-
+        bool has_obstacle = isBlocked(master_grid, person_mx, person_my, robot_mx, robot_my);
+        if(!has_obstacle){
+        
         for (int dx = -outer_buffer_cells; dx <= outer_buffer_cells; ++dx) {
             for (int dy = -outer_buffer_cells; dy <= outer_buffer_cells; ++dy) {
-                unsigned int cell_x = mx + dx;
-                unsigned int cell_y = my + dy;
+                unsigned int cell_x = person_mx + dx;
+                unsigned int cell_y = person_my + dy;
 
                 // Check if the cell is within the update window
                 if (cell_x >= min_i && cell_x < max_i && cell_y >= min_j && cell_y < max_j) {
@@ -257,13 +268,45 @@ void HumanLayer::updateCosts(
                 }
             }
         }
-
-        unsigned char current_cost{master_grid.getCost(mx, my)};
+        }
+        unsigned char current_cost{master_grid.getCost(person_mx, person_my)};
         RCLCPP_INFO(node->get_logger(),"[HUMAN_LAYER] Person:  %s in x: %lf, y: %lf, cost %u \n",guy.name.c_str(),lx,ly,current_cost);
     }
 
-} 
+}
 
+// Helper function 
+
+bool HumanLayer::isBlocked(nav2_costmap_2d::Costmap2D const&master_grid, int mx, int my, int rx, int ry)
+{
+    int dx = std::abs(rx - mx);
+    int dy = std::abs(ry - my);
+    int sx = (mx < rx) ? 1 : -1;
+    int sy = (my < ry) ? 1 : -1;
+    int err = dx - dy;
+
+    while (true) {
+        if (master_grid.getCost(mx, my) == nav2_costmap_2d::LETHAL_OBSTACLE) {
+            return true;
+        }
+
+        if (mx == rx && my == ry) {
+            break;
+        }
+
+        int e2 = 2 * err;
+        if (e2 > -dy) {
+            err -= dy;
+            mx += sx;
+        }
+        if (e2 < dx) {
+            err += dx;
+            my += sy;
+        }
+    }
+
+    return false;
+}
 }
 
 #include "pluginlib/class_list_macros.hpp"
