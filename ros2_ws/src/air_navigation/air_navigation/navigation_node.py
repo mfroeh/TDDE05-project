@@ -62,7 +62,16 @@ class NavigationNode(Node):
             msgPerson.velocity.y=0.0
             msgPerson.velocity.z=0.0
             if self.isUpdata(msgPerson):
-                pass
+                for person in self.msgPeople.people:
+                    if msgPerson.name == person.name:
+                        if abs(msgPerson.position.x-person.position.x)>0.1 or abs(msgPerson.position.y-person.position.y)>0.1 or abs(msgPerson.position.z-person.position.z)>0.1:
+                            print('UPDATING!')
+                            #update people info
+                            person.position.x=msgPerson.position.x
+                            person.position.y=msgPerson.position.y
+                            person.position.z=msgPerson.position.z
+                            break
+                                
             else:
                 self.msgPeople.people.append(msgPerson)
 
@@ -77,7 +86,6 @@ class NavigationNode(Node):
     def isUpdata(self,msgPerson):
         for person in self.msgPeople.people:
             if msgPerson.name == person.name:
-                person = msgPerson#update people info
                 return True
         return False
 

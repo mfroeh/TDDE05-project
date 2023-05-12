@@ -203,14 +203,14 @@ void HumanLayer::updateCosts(
             }
 
     //double buffer_size = 0.2; // Buffer size in meters
-    double inner_radius = 0.5; // Inner radius in meters
+    double inner_radius = 0.0; // Inner radius in meters
     double outer_radius = 3.0; // Outer radius in meters
     double resolution = master_grid.getResolution();
 
     //int buffer_cells = static_cast<int>(buffer_size / resolution);
     int outer_buffer_cells = static_cast<int>(outer_radius / resolution);
 
-    double amplitude = nav2_costmap_2d::LETHAL_OBSTACLE; // Maximum cost value
+    double amplitude = nav2_costmap_2d::LETHAL_OBSTACLE/2; // Maximum cost value
     double sigma = 0.5; // Gaussian function spread
 
     for(auto const& guy : transformed_people_)
@@ -250,31 +250,6 @@ void HumanLayer::updateCosts(
         RCLCPP_INFO(node->get_logger(),"[HUMAN_LAYER] Person:  %s in x: %lf, y: %lf, cost %u \n",guy.name.c_str(),lx,ly,current_cost);
     }
 
-    /* for(auto const& guy : transformed_people_)
-    {
-        double lx{guy.position.x}, ly{guy.position.y};
-        unsigned int mx, my;
-        if (!master_grid.worldToMap(lx, ly, mx, my)) {
-            //RCLCPP_WARN(node->get_logger(), "[HUMAN_LAYER] Person is outside the costmap bounds, skipping.");
-            continue;
-        }
-
-        for (int dx = -buffer_cells; dx <= buffer_cells; ++dx) {
-            for (int dy = -buffer_cells; dy <= buffer_cells; ++dy) {
-                int cell_x = mx + dx;//unsigned int
-                int cell_y = my + dy;
-
-                // Check if the cell is within the update window
-                if (cell_x >= min_i && cell_x < max_i && cell_y >= min_j && cell_y < max_j) 
-                {
-                    master_grid.setCost(cell_x, cell_y, nav2_costmap_2d::LETHAL_OBSTACLE);
-                }
-            }
-        }
-
-        unsigned char cost{master_grid.getCost(mx, my)};
-        RCLCPP_INFO(node->get_logger(),"[HUMAN_LAYER] Person:  %s in x: %lf, y: %lf, cost %u \n",guy.name.c_str(),lx,ly,cost);
-    }  */
 } 
 
 }

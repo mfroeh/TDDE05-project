@@ -199,7 +199,7 @@ public:
     return;
   }
 };
-};  // namespace social_navigation_layers
+}  // namespace air_navigation_layers
 
 #include "pluginlib/class_list_macros.hpp"
 PLUGINLIB_EXPORT_CLASS(air_navigation_layers::PassingLayer, nav2_costmap_2d::Layer)
