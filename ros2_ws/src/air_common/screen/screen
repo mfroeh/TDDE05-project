@@ -50,8 +50,8 @@ stuff "tdde05-start; start-tdde05; ros2 run air_navigation navigation_node\015"
 # Not related to what we built
 screen 20
 title "Simulator"
-# stuff "tdde05-start; start-tdde05; ros2 launch air_bringup turtle.launch.py world:=office_1 nav2_params_file:=$HOME/TDDE05/ros2_ws/src/air_navigation_layers/nav2.yaml\015"
-stuff "tdde05-start; start-tdde05; ros2 launch air_bringup turtle.launch.py world:=office_1\015"
+stuff "tdde05-start; start-tdde05; ros2 launch air_bringup turtle.launch.py world:=office_1 nav2_params_file:=$HOME/TDDE05/ros2_ws/src/air_navigation_layers/nav2.yaml\015"
+#stuff "tdde05-start; start-tdde05; ros2 launch air_bringup turtle.launch.py world:=office_1\015"
 
 screen 21
 title "rviz"
