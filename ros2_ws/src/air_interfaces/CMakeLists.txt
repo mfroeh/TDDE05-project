@@ -17,7 +17,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "action/Goals.action"
   "action/Navigate.action"
   "msg/Goal.msg"
-  "srv/GetPosition.srv" DEPENDENCIES geometry_msgs
+  "srv/GetPosition.srv"
+  "srv/ExecuteTst.srv"
+  DEPENDENCIES geometry_msgs
 )
 
 if(BUILD_TESTING)
