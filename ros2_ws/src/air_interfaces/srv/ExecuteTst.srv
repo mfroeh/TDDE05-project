@@ -1,0 +1,4 @@
+string tst    # The TST serialized as json
+---
+bool success  # Whether the execution of the TST was successful
+string error  # Error message if the execution was unsuccessful

@@ -13,14 +13,12 @@ find_package(geometry_msgs REQUIRED) # Point
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "action/Explore.action"
   "action/Goals.action"
   "action/Navigate.action"
   "msg/Goal.msg"
-  "msg/People.msg"
-  "msg/Person.msg"
-  "msg/Destination.msg"
-  "srv/GetPosition.srv" DEPENDENCIES geometry_msgs
+  "srv/GetPosition.srv"
+  "srv/ExecuteTst.srv"
+  DEPENDENCIES geometry_msgs
 )
 
 if(BUILD_TESTING)
