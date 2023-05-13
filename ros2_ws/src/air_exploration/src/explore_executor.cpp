@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <string>
+#include <algorithm>
 
 char const *EXPLORE_EXECUTOR_NODE_NAME = "explore_node";
 
@@ -135,6 +136,10 @@ void ExploreExecutor::generate_frontiers(Map map)
         std::sort(new_frontiers.begin(), new_frontiers.end(), nearest);
 
     frontiers = {new_frontiers.begin(), new_frontiers.end()};
+
+    auto undiscovered{std::count(map.get_data().begin(), map.get_data().end(), -1)};
+    double rate{(map.size - undiscovered) / static_cast<double>(map.size)};
+    RCLCPP_INFO(node->get_logger(), "Discovered %.2f%% (%lu/%lu) of map", rate * 100, map.size - undiscovered, map.size);
 }
 
 void ExploreExecutor::drive_to_next_frontier()
@@ -150,8 +155,11 @@ void ExploreExecutor::drive_to_next_frontier()
 
     visualize_frontier(frontiers);
 
-    Point p{frontiers.front().centroid};
+    Frontier f{frontiers.front()};
     frontiers.pop_front();
+    Point p{f.centroid};
+
+    current = std::make_unique<Frontier>(f);
 
     NavigateToPose::Goal msg{};
     msg.pose.pose.position = p;
@@ -281,6 +289,11 @@ void ExploreExecutor::handle_drive_result(rclcpp_action::ClientGoalHandle<Naviga
         RCLCPP_ERROR(node->get_logger(), "Drive: Goal was canceled");
         // TODO: If not found guy
         // If guy found, executionFinished(success);
+        if (euclidean(pos, current->centroid) < 0.25)
+        {
+            RCLCPP_INFO(node->get_logger(), "Drive: Goal was canceled, but we are close enough to the goal. Creating new frontiers...");
+            generate_frontiers(Map{map});
+        }
         drive_to_next_frontier();
         return;
     default:
@@ -300,7 +313,7 @@ bool ExploreExecutor::try_transform_to(PointStamped in, PointStamped &out, std::
             RCLCPP_INFO(node->get_logger(), "Transformed from %s (%f, %f) to %s (%f, %f)", in.header.frame_id.c_str(), in.point.x, in.point.y, target.c_str(), out.point.x, out.point.y);
         return true;
     }
-    catch (const tf2::TransformException &ex)
+    catch (tf2::TransformException const &ex)
     {
         if (log)
             RCLCPP_INFO(node->get_logger(), "Error transforming pose from %s to %s: %s", in.header.frame_id.c_str(), target.c_str(), ex.what());

@@ -31,6 +31,11 @@ struct Map
         return data[index];
     }
 
+    std::vector<int8_t> const &get_data()
+    {
+        return data;
+    }
+
 private:
     std::vector<int8_t> data;
 };
