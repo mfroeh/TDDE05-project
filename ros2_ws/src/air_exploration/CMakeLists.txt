@@ -44,6 +44,7 @@ find_package(std_msgs REQUIRED) # Colors
 
 find_package(TstML REQUIRED) # TST executors
 find_package(std_srvs REQUIRED) # TST executors
+find_package(irobot_create_msgs REQUIRED) # Undock executor
 
 # position_service
 add_executable(position_service src/position_service.cpp)
@@ -60,7 +61,7 @@ ament_target_dependencies(
 )
 
 # tst_executor
-add_executable(tst_executor src/tst_executor src/explore_executor src/frontier) # Add new executable
+add_executable(tst_executor src/tst_executor src/explore_executor src/frontier src/undock_executor) # Add new executable
 target_include_directories(tst_executor PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
@@ -82,6 +83,7 @@ ament_target_dependencies(
   "air_simple_sim_msgs"
   "TstML"
   "std_srvs"
+  "irobot_create_msgs"
 )
 target_link_libraries(tst_executor nlohmann_json TstMLExecutor)
 
