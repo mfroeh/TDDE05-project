@@ -56,10 +56,11 @@ class planningNode(Node):
    
     def runPlan(self, plan):
      
-        actions = json.load(plan)
+        actions = json.loads(plan.answer)
         tst = {
             "children":[],
             "common_params": {
+
             },
             "name": "seq",
             "params": {
@@ -78,20 +79,20 @@ class planningNode(Node):
             if actionName == "explore":
                 pass
 
-                node ={
-                        "children": [],
-                        "common_params": {},
-                        "name": "explore",
-                        "params": {
-                            "kind": "klass", #TODO
-                            "name": "tag", #TODO
-                            "policy": "biggest",
-                            "minsize": 15 
-                        }
-                    }
+                # node ={
+                #         "children": [],
+                #         "common_params": {},
+                #         "name": "explore",
+                #         "params": {
+                #             "kind": "klass", #TODO
+                #             "name": "tag", #TODO
+                #             "policy": "biggest",
+                #             "minsize": 15 
+                #         }
+                #     } 
 
             else:
-                to = action[2]
+                to = action[3]
                 
                 if "officeof" in to:
                     to.replace("officeof","o")
@@ -115,14 +116,14 @@ class planningNode(Node):
                             }
                         }
                     }
-                drive_to_human["children"].append(node)
+            tst["children"].append(node)
 
-    #    with open(self.relPath /'plan.json', 'w') as outfile:
-    #        json.dump(plan, outfile)
+        with open(self.relPath /'tst.json', 'w') as outfile:
+            json.dump(tst, outfile)
         
         self.tst_cli = self.create_client(ExecuteTst,'execute_tst',callback_group=self.group)
         self.tst_req = ExecuteTst.Request()
-        self.tst_req.tst = json.dumps(plan)
+        self.tst_req.tst = json.dumps(tst)
         future = self.tst_cli.call_async(self.tst_req)
 
 
@@ -143,6 +144,7 @@ class planningNode(Node):
         self.myProblem = self.makeProblem(self.data,self.goals)
         self.get_logger().info("problem got ")
         self.plan = self.getPlan()
+        self.get_logger().info("plan got, running plan... ")
         self.runPlan(self.plan)
 
         result = Goals.Result()
@@ -166,7 +168,7 @@ class planningNode(Node):
       rclpy.spin_until_future_complete(self, self.future)
       print("planner response done")
     #  print(self.future.result())
-      return future.result()
+      return self.future.result()
 
 
  #   def queryDB(self):
@@ -204,16 +206,17 @@ class planningNode(Node):
         self.vendingsAdded = []
         self.coords = {}
         for row in self.data:
-            classes = row['klass']
-            tags = row['tag']
-            uuid = row['uuid']
-            x=row["x"]
-            y=row["y"]
+            classes = row.klass
+            tags = row.tag.lower()
+            uuid = row.uuid
+            x=row.x
+            y=row.y
             #print(classes, " - ", tags ," -- ", x ," --- ", y)
-        
+            if tags == "åsa":
+                continue
             
             if classes == "human":
-            
+                
                 objList.append(tags + " - person")
                 self.coords[tags] = [x,y]
 
@@ -224,13 +227,12 @@ class planningNode(Node):
 
 
             if classes == "vendingmachine":
-                if uuid not in vendingsAdded:
+                if uuid not in self.vendingsAdded:
                     objList.append("vendingMachine" + str(uuid) + " - vending")
-                    vendingsAdded.append(uuid)
+                    self.vendingsAdded.append(uuid)
                     self.coords[uuid] = [x,y]
 
-                for tag in tags:
-                    initList.append("(vendingHas " + "vendingMachine" + str(uuid) + " " + tags + ")" )
+                initList.append("(vendingHas " + "vendingMachine" + str(uuid) + " " + tags + ")" )
                # vendingIndex = vendingIndex + 1
         #print(initList)
        
@@ -253,14 +255,14 @@ class planningNode(Node):
                 if goal.destination.type == "user":
                     person = "user" #its gonna be fucked fix it
                 if goal.destination.type == "person":
-                    person = goal.destination.name
+                    person = goal.destination.name.lower()
                 if goal.destination.type == "office":
                     raise Exception("BRING TO OFFICE NOT YET IMPLEMENTED")
             
-            initList.append("(personNeed " + person + " " + goal.object + ")") #rename probably..
-            goalList.append("(personHas " + person + " " + goal.object + ")")
+                initList.append("(personNeed " + person + " " + goal.object + ")") #rename probably..
+                goalList.append("(personHas " + person + " " + goal.object + ")")
             #content = goal.object
-            
+
 
         with open(fileName, 'w') as f:
             f.write("(define (problem " + "problem" + str(self.problemIndex) + ")\n")
@@ -281,9 +283,10 @@ class planningNode(Node):
             f.write("(:goal (and\n")
 
             for line in goalList:
-                f.write(line)
+                f.write(line + "\n")
 
-            f.write("\t))\n")
+
+            f.write("\t)\n)\n")
             f.write(")\n")
 
             
