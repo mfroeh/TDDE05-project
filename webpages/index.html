@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Office Robot</title>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js">
+	</script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f7f7f7;
+        color: #333;
+        text-align: center;
+      }
+      h1 {
+        font-size: 2.5rem;
+        margin-top: 3rem;
+      }
+      form {
+        margin-top: 2rem;
+      }
+      label {
+        display: block;
+        font-size: 1.2rem;
+        margin-bottom: 0.5rem;
+      }
+      input[type="text"] {
+        padding: 0.5rem;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        font-size: 1.2rem;
+        width: 20rem;
+      }
+      button[type="submit"] {
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        padding: 0.5rem 1rem;
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition: all 0.3s ease-in-out;
+      }
+      button[type="submit"]:hover {
+        background-color: #0062cc;
+      }
+    </style>
+  </head>
+  <body>
+  <h1>How can I be of assistance?</h1>
+  <form onsubmit="sendMessage(event)">
+    <label for="input-box">Enter your command here:</label>
+    <input type="text" id="input-box" name="input-box">
+    <br><br>
+    <button type="submit">Submit</button>
+  </form>
+  <script type="text/javascript">
+    var ros = new ROSLIB.Ros({ url : 'ws://localhost:9090' });
+    ros.on('connection', function() { console.log('Connected to websocket server.'); });
+    ros.on('error', function(error) { console.log('Error connecting to websocket server: ', error); });
+    ros.on('close', function() { console.log('Connection to websocket server closed.'); });
+
+    var cmdPrompt = new ROSLIB.Topic({
+      ros : ros,
+      name : '/input_prompt',
+      messageType : 'std_msgs/msg/String'
+    });
+
+    function sendMessage(event) {
+      event.preventDefault();
+      var input = document.getElementById("input-box").value;
+      var prompt = new ROSLIB.Message({
+        data : input
+      });
+      cmdPrompt.publish(prompt);
+    }
+  </script>
+</body>
+</html>
+

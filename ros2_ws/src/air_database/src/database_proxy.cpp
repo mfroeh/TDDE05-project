@@ -51,18 +51,19 @@ private:
     request->graphname = graph_name;
 
     std::ostringstream os{};
-    os << "PREFIX gis: <http://www.ida.liu.se/~TDDE05/gis>" << std::endl;
-    os << "PREFIX properties: <http://www.ida.liu.se/~TDDE05/properties>"
-       << std::endl;
-    os << "SELECT ?obj_id ?class ?x ?y WHERE { ?obj_id a ?class ;" << std::endl;
-    os << "properties:location [ gis:x ?x; gis:y ?y ] . }" << std::endl;
+    os << "PREFIX gis: <http://www.ida.liu.se/~TDDE05/gis>\n"
+       << "PREFIX properties: <http://www.ida.liu.se/~TDDE05/properties>\n"
+       << "SELECT ?obj_id ?class ?tags ?x ?y WHERE { ?obj_id a ?class ; "
+       << "properties:location [ gis:x ?x; gis:y ?y ] ; properties:tags "
+       << "?tags . }\n";
 
     request->query = os.str();
     request->format = "json";
 
     auto future = query_client->async_send_request(request);
 
-    while (future.wait_for(1s) != std::future_status::ready);
+    while (future.wait_for(1s) != std::future_status::ready)
+      ;
 
     RCLCPP_INFO(this->get_logger(), "Received result");
 
@@ -81,6 +82,7 @@ private:
       Entity temp{};
       temp.uuid = obj["obj_id"]["value"].get<std::string>();
       temp.klass = obj["class"]["value"].get<std::string>();
+      temp.tags = obj["tags"]["value"].get<std::vector<std::string>>();
       temp.x = stod(obj["x"]["value"].get<std::string>());
       temp.y = stod(obj["y"]["value"].get<std::string>());
 

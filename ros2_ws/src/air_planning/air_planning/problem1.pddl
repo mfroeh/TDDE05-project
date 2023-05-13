@@ -1,4 +1,4 @@
-(define (problem problem0)
+(define (problem problem2)
 (:domain office)
 (:objects
 user - user
