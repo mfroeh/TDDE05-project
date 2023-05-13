@@ -245,7 +245,60 @@ void ExploreExecutor::visualize_frontier(std::deque<Frontier> frontiers)
     }
     arr.markers.push_back(marker);
 
-    visualization_pub->publish(arr);
+    // visualization_pub->publish(arr);
+
+    std::vector<Point> frontier_centroids{};
+    std::transform(frontiers.begin(), frontiers.end(), std::back_inserter(frontier_centroids), [](Frontier const &f)
+                   { return f.centroid; });
+
+    Frontier all_points{std::accumulate(frontiers.begin(),
+                                        frontiers.end(), Frontier{std::vector<unsigned>{}, Map{map}},
+                                        [](Frontier &a, Frontier &b)
+                                        {
+                                            a.points.insert(a.points.end(), b.points.begin(), b.points.end());
+                                            return a;
+                                        })};
+
+    // Create marker for frontier points
+    Marker points_marker;
+    points_marker.header.frame_id = "map";
+    points_marker.header.stamp = node->now();
+    points_marker.ns = "blue_balls";
+    points_marker.id = 0;
+    points_marker.type = Marker::SPHERE_LIST;
+    points_marker.action = Marker::ADD;
+    points_marker.scale.x = 0.2;
+    points_marker.scale.y = 0.2;
+    points_marker.scale.z = 0.2;
+    points_marker.color.r = 0.0;
+    points_marker.color.g = 0.0;
+    points_marker.color.b = 1.0;
+    points_marker.color.a = 1.0;
+    points_marker.points = all_points.points;
+
+    // Create marker for red cubes
+    Marker centroids_marker{};
+    centroids_marker.header.frame_id = "map";
+    centroids_marker.header.stamp = node->now();
+    centroids_marker.ns = "red_cubes";
+    centroids_marker.id = 1;
+    centroids_marker.type = Marker::CUBE_LIST;
+    centroids_marker.action = Marker::ADD;
+    centroids_marker.scale.x = 0.2;
+    centroids_marker.scale.y = 0.2;
+    centroids_marker.scale.z = 0.2;
+    centroids_marker.color.r = 1.0;
+    centroids_marker.color.g = 0.0;
+    centroids_marker.color.b = 0.0;
+    centroids_marker.color.a = 1.0;
+    centroids_marker.points = frontier_centroids;
+
+    // Create MarkerArray message and add markers
+    MarkerArray marker_array{};
+    marker_array.markers.push_back(centroids_marker);
+    marker_array.markers.push_back(points_marker);
+
+    visualization_pub->publish(marker_array);
 }
 
 void ExploreExecutor::handle_drive_response(
