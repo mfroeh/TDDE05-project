@@ -78,11 +78,11 @@ TstML::Executor::ExecutionStatus ExploreExecutor::start()
         RCLCPP_INFO(node->get_logger(), "Waiting for map...");
 
     // TODO: If not found the guy
-    if (goal_entity_found())
-    {
-        executionFinished(TstML::Executor::ExecutionStatus::Finished());
-        return TstML::Executor::ExecutionStatus::Finished();
-    }
+    // if (goal_entity_found())
+    // {
+    //     executionFinished(TstML::Executor::ExecutionStatus::Finished());
+    //     return TstML::Executor::ExecutionStatus::Finished();
+    // }
 
     generate_frontiers(Map{map});
     drive_to_next_frontier();
@@ -177,7 +177,7 @@ void ExploreExecutor::drive_to_next_frontier()
     navigate_client->async_send_goal(msg, send_goal_options);
 
     pos_snapshot = pos;
-    timer = node->create_wall_timer(2s, std::bind(&Self::check_stuck, this));
+    timer = node->create_wall_timer(4s, std::bind(&Self::check_stuck, this));
     RCLCPP_INFO(node->get_logger(), "Started moving to frontier at x: %f, y: %f", p.x, p.y);
 }
 
@@ -304,15 +304,15 @@ void ExploreExecutor::handle_drive_result(rclcpp_action::ClientGoalHandle<Naviga
     case rclcpp_action::ResultCode::SUCCEEDED:
         RCLCPP_INFO(node->get_logger(), "Drive: Goal was succeeded");
         // TODO: If not found the guy
-        if (goal_entity_found())
-        {
-            executionFinished(TstML::Executor::ExecutionStatus::Finished());
-        }
-        else
-        {
-            generate_frontiers(Map{map});
-            drive_to_next_frontier();
-        }
+        // if (goal_entity_found())
+        // {
+        //     executionFinished(TstML::Executor::ExecutionStatus::Finished());
+        // }
+        // else
+        // {
+        generate_frontiers(Map{map});
+        drive_to_next_frontier();
+        // }
         return;
     case rclcpp_action::ResultCode::ABORTED:
         RCLCPP_ERROR(node->get_logger(), "Drive: Goal was aborted: %d", static_cast<int>(result.code));
@@ -321,11 +321,11 @@ void ExploreExecutor::handle_drive_result(rclcpp_action::ClientGoalHandle<Naviga
     case rclcpp_action::ResultCode::CANCELED:
         RCLCPP_ERROR(node->get_logger(), "Drive: Goal was canceled");
         // TODO: If not found the guy
-        if (goal_entity_found())
-        {
-            executionFinished(TstML::Executor::ExecutionStatus::Finished());
-        }
-        else if (euclidean(pos, current->centroid) < 0.25)
+        // if (goal_entity_found())
+        // {
+        //     executionFinished(TstML::Executor::ExecutionStatus::Finished());
+        // }
+        if (euclidean(pos, current->centroid) < 0.25)
         {
             RCLCPP_INFO(node->get_logger(), "Drive: Goal was canceled, but we are close enough to the goal. Creating new frontiers...");
             generate_frontiers(Map{map});
