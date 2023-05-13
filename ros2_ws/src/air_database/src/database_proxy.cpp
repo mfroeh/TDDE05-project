@@ -1,3 +1,4 @@
+#include <future>
 #include <string>
 #include <vector>
 
@@ -16,16 +17,15 @@
 
 using std::placeholders::_1;
 using std::placeholders::_2;
+using namespace std::chrono_literals;
 using QueryServiceT = ros2_kdb_msgs::srv::QueryDatabase;
 using json = nlohmann::json;
 using Entity = air_interfaces::msg::Entity;
 using GetEntityT = air_interfaces::srv::GetEntities;
 
-class DatabaseProxy : public rclcpp::Node
-{
+class DatabaseProxy : public rclcpp::Node {
 public:
-  DatabaseProxy() : Node("database_proxy")
-  {
+  DatabaseProxy() : Node("database_proxy") {
     query_client =
         this->create_client<QueryServiceT>("/kdb_server/sparql_query");
     query_client->wait_for_service();
@@ -34,14 +34,14 @@ public:
   }
 
 private:
-  void get_entities(std::shared_ptr<GetEntityT::Request> const, std::shared_ptr<GetEntityT::Response> response)
-  {
+  void get_entities(std::shared_ptr<GetEntityT::Request> const,
+                    std::shared_ptr<GetEntityT::Response> response) {
     std::string graph_name{"semanticobject"};
-    response->entities = query_all(graph_name);
+    query_all(graph_name, response);
   }
 
-  std::vector<Entity> query_all(std::string const &graph_name)
-  {
+  void query_all(std::string const& graph_name,
+                 std::shared_ptr<GetEntityT::Response> response) {
 
     RCLCPP_INFO(this->get_logger(), "Starting query\n");
 
@@ -58,54 +58,51 @@ private:
     request->query = os.str();
     request->format = "json";
 
-    auto future = query_client->async_send_request(request);
+    auto future = query_client->async_send_request(
+        request,
+        [this, response](rclcpp::Client<QueryServiceT>::SharedFuture future) {
+          RCLCPP_INFO(this->get_logger(), "Received result");
 
-    rclcpp::spin_until_future_complete(this->get_node_base_interface(), future);
+          auto parsed_result{json::parse(future.get()->result)};
 
-    RCLCPP_INFO(this->get_logger(), "Received result");
+          RCLCPP_INFO(this->get_logger(), "Object: %s\n",
+                      future.get()->result.c_str());
 
-    auto parsed_result{json::parse(future.get()->result)};
+          std::vector<Entity> ret{};
 
-    RCLCPP_INFO(this->get_logger(), "Object: %s\n",
-                future.get()->result.c_str());
+          if (!future.get()->success) {
+            RCLCPP_ERROR(get_logger(),
+                         "Query: /kdb_server/sparql_query wasn't successful!");
+            return;
+          }
 
-    std::vector<Entity> ret{};
+          auto bindings = parsed_result[0]["results"]["bindings"];
+          for (auto&& obj : bindings) {
+            Entity temp{};
+            temp.uuid = obj["obj_id"]["value"].get<std::string>();
+            temp.klass = obj["class"]["value"].get<std::string>();
+            temp.x = stod(obj["x"]["value"].get<std::string>());
+            temp.y = stod(obj["y"]["value"].get<std::string>());
 
-    if (!future.get()->success)
-    {
-      RCLCPP_ERROR(get_logger(),
-                   "Query: /kdb_server/sparql_query wasn't successful!");
-      return ret;
-    }
-
-    auto bindings = parsed_result[0]["results"]["bindings"];
-    for (auto &&obj : bindings)
-    {
-      Entity temp{};
-      temp.uuid = obj["obj_id"]["value"].get<std::string>();
-      temp.klass = obj["class"]["value"].get<std::string>();
-      temp.x = stod(obj["x"]["value"].get<std::string>());
-      temp.y = stod(obj["y"]["value"].get<std::string>());
-
-      if (temp.klass == "human" || temp.klass == "vendingmachine" ||
-          temp.klass == "office")
-        ret.push_back(temp);
-    }
-
-    return ret;
+            if (temp.klass == "human" || temp.klass == "vendingmachine" ||
+                temp.klass == "office")
+              ret.push_back(temp);
+          }
+          response->entities = ret;
+        });
   }
 
   rclcpp::Client<QueryServiceT>::SharedPtr query_client;
   rclcpp::Service<air_interfaces::srv::GetEntities>::SharedPtr service;
 };
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char* argv[]) {
   rclcpp::init(argc, argv);
   rclcpp::executors::MultiThreadedExecutor executor;
   auto node = std::make_shared<DatabaseProxy>();
   executor.add_node(node);
   executor.spin();
+  rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;
 }
