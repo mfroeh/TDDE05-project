@@ -34,6 +34,8 @@ def is_object(x):
 def is_quantity(x):
     return x == "B-quantity"
 
+def is_goal(x):
+    return "goal" in x
 
 def is_destination(x):
     return is_person(x) or is_user(x) or is_office(x)
@@ -53,8 +55,10 @@ def create_destination(word, slot):
     return destination
 
 
-def find_destination(i, words, slots):
+def find_destination(i, words, slots, stop=False):
     for j, (word, slot) in enumerate(zip(words[i:], slots[i:])):
+        if is_goal(slot) and stop:
+            return None
         if is_destination(slot):
             destination = create_destination(word, slot)
             slots.pop(j + i)
@@ -134,6 +138,27 @@ def add_bring_goal(object, destination, goals):
     goal = Goal()
     goal.type = "bring"
     goal.object = object
+    goal.destination = destination
+    goals.append(goal)
+
+
+def add_bring_goals(object, destination, quantity, goals):
+    for k in range(quantity):
+        add_bring_goal(object, destination, goals)
+
+
+def add_bring_everyone(object, destination, goals, known_people):
+    destination = Destination()
+    destination.type = "user"
+    destination.name = "N/A"
+    add_bring_goal(object, destination, goals)
+    for destination in known_people:
+        add_bring_goal(object, destination, goals)
+
+
+def add_goto_goal(destination, goals):
+    goal = Goal()
+    goal.type = "goto"
     goal.destination = destination
     goals.append(goal)
 
@@ -221,15 +246,12 @@ class NlpNode(Node):
             # Handle a goto goal
 
             if slot == "B-goal.goto":
-                goal = Goal()
-                goal.type = "goto"
                 # Finds and pops the nearest destination
                 destination = find_destination(i, words, slots)
                 if destination is None:
                     raise Exception("Could not find a destination for goto")
                 else:
-                    goal.destination = destination
-                    goals.append(goal)
+                    add_goto_goal(destination, goals)
                     add_known_person(destination.name, known_people)
 
             # Handle a bring goal
@@ -239,60 +261,54 @@ class NlpNode(Node):
                 object = find_object(i, words, slots)  # Finds and pops the nearest object
                 destination = find_destination(i, words, slots)
 
-                if destination is None:
-                    if is_there_everyone(slots[i:]):
-
-                        # If a B-everyone tag is found, create a bring goal for user and every known person
-
-                        destination = Destination()
-                        destination.type = "user"
-                        destination.name = "N/A"
-                        add_bring_goal(object, destination, goals)
-                        for destination in known_people:
-                            add_bring_goal(object, destination, goals)
-                    else:
-                        if not known_people:
-                            raise Exception("Could not find a destination for bring")
-                        else:
-
-                            # If there are known people and no destination is found
-                            # generate the bring goal for the latest known person
-
-                            quantity = find_quantity(i, words, slots)
-                            for k in range(quantity):
-                                add_bring_goal(object, known_people[-1], goals)
-                else:
-
+                if destination:
                     # If a destination is found, find the quantity and generate bring goals
 
                     quantity = find_quantity(i, words, slots)
                     add_known_person(destination.name, known_people)
 
-                    for k in range(quantity):
-                        add_bring_goal(object, destination, goals)
+                    add_bring_goals(object, destination, quantity, goals)
+                else:
+                    if is_there_everyone(slots[i:]):
+                        # If a B-everyone tag is found, create a bring goal for user and every known person
+                        add_bring_everyone(object, destination, goals, known_people)
+                    else:
+                        if known_people:
+                            # If there are known people and no destination is found
+                            # generate the bring goal for the latest known person
+
+                            quantity = find_quantity(i, words, slots)
+
+                            add_bring_goals(object, known_people[-1], quantity, goals)
+                        else:
+                            raise Exception("Could not find a destination for bring")
 
             # Handle left over destinations by cloning latest goal
 
             elif is_destination(slot) and len(goals):
-                goal = Goal()
                 last_goal = goals[-1]
-                goal.type = last_goal.type
-                goal.object = last_goal.object
-                goal.destination = create_destination(word, slot)
-                add_known_person(goal.destination.name, known_people)
-                goals.append(goal)
+                destination = create_destination(word, slot)
+                add_known_person(destination.name, known_people)
+                if last_goal.type == "goto":
+                    add_goto_goal(destination, goals)
+                else:  # last_goal is "bring"
+                    object = find_object(i, words, slots)
+                    if object:
+                        quantity = find_quantity(i, words, slots)
+                        add_bring_goals(object, destination, quantity, goals)
+                    else:
+                        add_bring_goal(last_goal.object, destination, goals)
 
             # Handle left over objects by cloning latest bring goal
 
             elif is_object(slot) and len(goals):
-                goal = Goal()
                 last_goal = goals[-1]
                 if last_goal.type != "bring":
                     raise Exception("I could not understand composite goals")
-                goal.type = "bring"
-                goal.object = create_object(word)
-                goal.destination = last_goal.destination
-                goals.append(goal)
+                destination = find_destination(i, words, slots)
+                if destination is None:
+                    destination = last_goal.destination
+                add_bring_goal(create_object(word), destination, goals)
 
             elif is_quantity(slot) and len(goals):
                 last_goal = goals[-1]
@@ -300,12 +316,12 @@ class NlpNode(Node):
                     raise Exception("I could not understand composite goals")
                 quantity = create_quantity(word)
                 object = find_object(i, words, slots)
-                for k in range(quantity):
-                    goal = Goal()
-                    goal.type = "bring"
-                    goal.object = object
-                    goal.destination = last_goal.destination
-                    goals.append(goal)
+                if object:
+                    add_bring_goals(object, last_goal.destination, quantity, goals)
+                else:
+                    # True means stop searching if you encounter a new goal
+                    destination = find_destination(i, words, slots, True)
+                    add_bring_goals(last_goal.object, destination, quantity, goals)
             i += 1
 
         for goal in goals:
