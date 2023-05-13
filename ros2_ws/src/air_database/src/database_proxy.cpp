@@ -69,6 +69,8 @@ private:
 
     auto parsed_result{json::parse(future.get()->result)};
 
+    RCLCPP_INFO(this->get_logger(), "Result: %s", parsed_result.dump(4).c_str());
+
     std::vector<Entity> ret{};
 
     if (!future.get()->success) {
@@ -82,7 +84,7 @@ private:
       Entity temp{};
       temp.uuid = obj["obj_id"]["value"].get<std::string>();
       temp.klass = obj["class"]["value"].get<std::string>();
-      temp.tags = obj["tags"]["value"].get<std::vector<std::string>>();
+      temp.tag = obj["tags"]["value"].get<std::string>();
       temp.x = stod(obj["x"]["value"].get<std::string>());
       temp.y = stod(obj["y"]["value"].get<std::string>());
 
