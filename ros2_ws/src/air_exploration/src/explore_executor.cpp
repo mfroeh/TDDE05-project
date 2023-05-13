@@ -3,13 +3,9 @@
 #include <chrono>
 #include <string>
 #include <algorithm>
+#include <future>
 
-char const *EXPLORE_EXECUTOR_NODE_NAME = "explore_node";
-
-char const *QUERY_SERVICE_TOPIC = "/kdb_server/sparql_query";
-char const *SEMANTIC_SENSOR_TOPIC = "/semantic_sensor";
-char const *FRONTIER_VISUALIZATION_TOPIC = "frontier_visualization";
-char const *GRAPHNAME = "semanticobject";
+#include "air_interfaces/msg/entity.hpp"
 
 using namespace rclcpp;
 using namespace rclcpp_action;
@@ -20,12 +16,16 @@ using geometry_msgs::msg::PointStamped;
 using nav_msgs::msg::OccupancyGrid;
 using nav_msgs::msg::Odometry;
 
+using air_interfaces::srv::GetEntities;
 using nav2_msgs::action::NavigateToPose;
-using ros2_kdb_msgs::srv::QueryDatabase;
 
 using visualization_msgs::msg::MarkerArray;
 
 using Self = ExploreExecutor;
+
+char const *EXPLORE_EXECUTOR_NODE_NAME = "explore_node";
+char const *GET_ENTRIES_SERVICE_TOPIC = "get_entities";
+char const *FRONTIER_VISUALIZATION_TOPIC = "frontier_visualization";
 
 static double euclidean(Point a, Point b)
 {
@@ -48,14 +48,15 @@ ExploreExecutor::ExploreExecutor(TstML::TSTNode const *tst_node, TstML::Executor
     odom_sub = node->create_subscription<Odometry>("odom", 10, std::bind(&Self::handle_odom, this, _1));
 
     // Navigation client
-    navigate_client = rclcpp_action::create_client<NavigateToPose>(node, "navigate_to_pose");
+    callback_group = node->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    navigate_client = rclcpp_action::create_client<NavigateToPose>(node, "navigate_to_pose", callback_group);
 
     // Transformations
     tf_buffer = std::make_unique<tf2_ros::Buffer>(node->get_clock());
     tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
 
-    // Query database
-    query_client = node->create_client<QueryDatabase>(QUERY_SERVICE_TOPIC);
+    // Database entries
+    entities_client = node->create_client<GetEntities>(GET_ENTRIES_SERVICE_TOPIC);
 
     // Visualization
     visualization_pub = node->create_publisher<MarkerArray>(FRONTIER_VISUALIZATION_TOPIC, 10);
@@ -73,12 +74,16 @@ ExploreExecutor::~ExploreExecutor()
 
 TstML::Executor::ExecutionStatus ExploreExecutor::start()
 {
-    // TODO: If not found the guy
-
     while (!map)
-    {
         RCLCPP_INFO(node->get_logger(), "Waiting for map...");
+
+    // TODO: If not found the guy
+    if (goal_entity_found())
+    {
+        executionFinished(TstML::Executor::ExecutionStatus::Finished());
+        return TstML::Executor::ExecutionStatus::Finished();
     }
+
     generate_frontiers(Map{map});
     drive_to_next_frontier();
     return TstML::Executor::ExecutionStatus::Started();
@@ -298,10 +303,16 @@ void ExploreExecutor::handle_drive_result(rclcpp_action::ClientGoalHandle<Naviga
     {
     case rclcpp_action::ResultCode::SUCCEEDED:
         RCLCPP_INFO(node->get_logger(), "Drive: Goal was succeeded");
-        // TODO: If not found guy
-        // If guy found, executionFinished(success);
-        generate_frontiers(Map{map});
-        drive_to_next_frontier();
+        // TODO: If not found the guy
+        if (goal_entity_found())
+        {
+            executionFinished(TstML::Executor::ExecutionStatus::Finished());
+        }
+        else
+        {
+            generate_frontiers(Map{map});
+            drive_to_next_frontier();
+        }
         return;
     case rclcpp_action::ResultCode::ABORTED:
         RCLCPP_ERROR(node->get_logger(), "Drive: Goal was aborted: %d", static_cast<int>(result.code));
@@ -309,20 +320,44 @@ void ExploreExecutor::handle_drive_result(rclcpp_action::ClientGoalHandle<Naviga
         return;
     case rclcpp_action::ResultCode::CANCELED:
         RCLCPP_ERROR(node->get_logger(), "Drive: Goal was canceled");
-        // TODO: If not found guy
-        // If guy found, executionFinished(success);
-        if (euclidean(pos, current->centroid) < 0.25)
+        // TODO: If not found the guy
+        if (goal_entity_found())
+        {
+            executionFinished(TstML::Executor::ExecutionStatus::Finished());
+        }
+        else if (euclidean(pos, current->centroid) < 0.25)
         {
             RCLCPP_INFO(node->get_logger(), "Drive: Goal was canceled, but we are close enough to the goal. Creating new frontiers...");
             generate_frontiers(Map{map});
         }
-        drive_to_next_frontier();
+        else
+        {
+            drive_to_next_frontier();
+        }
         return;
     default:
         RCLCPP_ERROR(node->get_logger(), "Unknown result code");
         executionFinished(TstML::Executor::ExecutionStatus::Aborted());
         return;
     }
+}
+
+bool ExploreExecutor::goal_entity_found()
+{
+    using air_interfaces::msg::Entity;
+
+    std::string kind{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "kind").toString().toStdString()};
+    std::string name{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "name").toString().toStdString()};
+
+    auto future{entities_client->async_send_request(std::make_shared<GetEntities::Request>())};
+    while (future.wait_for(1s) != std::future_status::ready)
+    {
+    }
+
+    // TODO: Entity needs a name member variable
+    auto entries{future.get()->entities};
+    return std::any_of(entries.begin(), entries.end(), [kind, name](Entity const &e)
+                       { return e.klass == kind && e.uuid == name; });
 }
 
 bool ExploreExecutor::try_transform_to(PointStamped in, PointStamped &out, std::string target, bool log) const
