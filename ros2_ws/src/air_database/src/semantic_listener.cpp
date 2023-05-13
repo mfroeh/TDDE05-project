@@ -75,7 +75,13 @@ private:
         os << "<" << msg.uuid.c_str() << "> a <" << msg.klass.c_str() << ">;"
            << std::endl;
         os << "properties:location [ gis:x " << transformed_point.point.x << "; gis:y "
-           << transformed_point.point.y << " ] ." << std::endl;
+           << transformed_point.point.y << " ]" << std::endl;
+        for(auto&& tag : msg.tags)
+        {
+            os << ";";
+            os << "properties:tags <" + tag + ">" << std::endl;
+        }
+        os << "." << std::endl;
 
         RCLCPP_INFO(this->get_logger(), "Inserting - uuid: %s, klass: %s, x: %f, y: %f\n", msg.uuid.c_str(), msg.klass.c_str(), transformed_point.point.x, transformed_point.point.y);
 
