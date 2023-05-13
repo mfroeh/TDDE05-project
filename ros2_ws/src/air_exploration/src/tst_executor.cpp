@@ -22,6 +22,7 @@
 
 #include "air_interfaces/srv/execute_tst.hpp"
 #include "explore_executor.hpp"
+#include "undock_executor.hpp"
 
 using namespace rclcpp;
 using namespace TstML;
@@ -60,10 +61,9 @@ public:
         tst_executor_registry->registerNodeExecutor<DefaultNodeExecutor::Sequence>(tst_registry->model("seq"));
         tst_executor_registry->registerNodeExecutor<DefaultNodeExecutor::Concurrent>(tst_registry->model("conc"));
         tst_executor_registry->registerNodeExecutor<ExploreExecutor>(tst_registry->model("explore"));
+        tst_executor_registry->registerNodeExecutor<UndockExecutor>(tst_registry->model("undock"));
 
         // TODO: Register driver
-        // tst_executor_registry->registerNodeExecutor<UndockExecutor>(
-        //     tst_registry->model("undock"));
         // tst_executor_registry->registerNodeExecutor<DockExecutor>(
         //     tst_registry->model("dock"));
         // tst_executor_registry->registerNodeExecutor<DriveToExecutor>(
@@ -113,13 +113,13 @@ private:
         // Start execution
         tst_executor->start();
 
-        RCLCPP_INFO(get_logger(), "Before waitForFinished");
+        RCLCPP_INFO(get_logger(), "Began execution of TST");
         // Block until the execution has finished
         ExecutionStatus status{tst_executor->waitForFinished()};
-        RCLCPP_INFO(get_logger(), "After waitForFinished");
+        RCLCPP_INFO(get_logger(), "Finished execution of TST");
 
         // Cleanup
-        tst_executor = nullptr;
+        tst_executor.release();
 
         // Display the result of execution
         response->success = status == ExecutionStatus::Finished();

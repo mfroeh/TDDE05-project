@@ -43,6 +43,7 @@ public:
 
 private:
     std::deque<Frontier> frontiers{};
+    std::unique_ptr<Frontier> current{};
 
     std::shared_ptr<rclcpp::Node> node{};
     rclcpp::executors::MultiThreadedExecutor executor{};
@@ -70,6 +71,8 @@ private:
 
     void drive_to_next_frontier();
 
+    void check_stuck();
+
     /// @brief Updates the current position
     /// @param msg The odometry message
     void handle_odom(nav_msgs::msg::Odometry::SharedPtr const msg);
@@ -88,8 +91,6 @@ private:
 
     void handle_drive_result(rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::WrappedResult const &result);
 
-    void check_stuck();
-
     /// @brief Tries to transform a point to a target frame
     /// @param in The point to transform
     /// @param out The transformed point
@@ -97,5 +98,3 @@ private:
     /// @return True if the transformation was successful, false otherwise
     bool try_transform_to(geometry_msgs::msg::PointStamped in, geometry_msgs::msg::PointStamped &out, std::string target, bool log) const;
 };
-
-using nav_msgs::msg::Odometry;
