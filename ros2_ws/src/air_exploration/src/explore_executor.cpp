@@ -217,36 +217,6 @@ void ExploreExecutor::visualize_frontier(std::deque<Frontier> frontiers)
     using visualization_msgs::msg::Marker;
     using visualization_msgs::msg::MarkerArray;
 
-    MarkerArray arr{};
-    Marker marker{};
-    marker.id = 1242;
-    marker.header.frame_id = "map";
-    marker.type = visualization_msgs::msg::Marker::CUBE_LIST;
-    marker.action = 0;
-    marker.scale.x = 0.5;
-    marker.scale.y = 0.5;
-    marker.scale.z = 0.5;
-    marker.pose.orientation.w = 1.0;
-    marker.color.a = 1.0;
-
-    for (auto &f : frontiers)
-    {
-        Point p{f.centroid};
-        p.x = p.x;
-        p.y = p.y;
-        marker.points.push_back(p);
-
-        ColorRGBA color;
-        color.a = 1.0;
-        color.r = 1.0;
-        color.g = 0.5;
-        color.b = 0.5;
-        marker.colors.push_back(color);
-    }
-    arr.markers.push_back(marker);
-
-    // visualization_pub->publish(arr);
-
     std::vector<Point> frontier_centroids{};
     std::transform(frontiers.begin(), frontiers.end(), std::back_inserter(frontier_centroids), [](Frontier const &f)
                    { return f.centroid; });
@@ -260,7 +230,7 @@ void ExploreExecutor::visualize_frontier(std::deque<Frontier> frontiers)
                                         })};
 
     // Create marker for frontier points
-    Marker points_marker;
+    Marker points_marker{};
     points_marker.header.frame_id = "map";
     points_marker.header.stamp = node->now();
     points_marker.ns = "blue_balls";
@@ -276,7 +246,7 @@ void ExploreExecutor::visualize_frontier(std::deque<Frontier> frontiers)
     points_marker.color.a = 1.0;
     points_marker.points = all_points.points;
 
-    // Create marker for red cubes
+    // Create marker for frontier centroids
     Marker centroids_marker{};
     centroids_marker.header.frame_id = "map";
     centroids_marker.header.stamp = node->now();
@@ -297,7 +267,6 @@ void ExploreExecutor::visualize_frontier(std::deque<Frontier> frontiers)
     MarkerArray marker_array{};
     marker_array.markers.push_back(centroids_marker);
     marker_array.markers.push_back(points_marker);
-
     visualization_pub->publish(marker_array);
 }
 

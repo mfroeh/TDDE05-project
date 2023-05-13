@@ -1,4 +1,4 @@
 string uuid
 string klass
-float x
-float y
+float64 x
+float64 y

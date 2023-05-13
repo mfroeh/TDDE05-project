@@ -87,7 +87,22 @@ ament_target_dependencies(
 )
 target_link_libraries(tst_executor nlohmann_json TstMLExecutor)
 
-install(TARGETS position_service tst_executor
+# semantic visualizer
+add_executable(semantic_visualizer src/semantic_visualizer)
+target_include_directories(semantic_visualizer PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(semantic_visualizer PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+ament_target_dependencies(
+  semantic_visualizer
+  "rclcpp"
+  "air_interfaces"
+  "std_msgs"
+  "visualization_msgs"
+)
+
+
+install(TARGETS position_service tst_executor semantic_visualizer
     DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
