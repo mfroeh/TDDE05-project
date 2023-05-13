@@ -55,6 +55,8 @@ private:
 
     rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SharedPtr navigate_client{};
     rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr goal_handle{};
+    rclcpp::TimerBase::SharedPtr timer{};
+    geometry_msgs::msg::Point pos_snapshot{};
 
     std::unique_ptr<tf2_ros::Buffer> tf_buffer{};
     std::shared_ptr<tf2_ros::TransformListener> tf_listener{};
@@ -85,6 +87,8 @@ private:
     void handle_drive_feedback(rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr goal, std::shared_ptr<const nav2_msgs::action::NavigateToPose::Feedback> const feedback);
 
     void handle_drive_result(rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::WrappedResult const &result);
+
+    void check_stuck();
 
     /// @brief Tries to transform a point to a target frame
     /// @param in The point to transform
