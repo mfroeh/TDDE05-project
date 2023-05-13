@@ -20,7 +20,7 @@
 #include <visualization_msgs/msg/marker.hpp>
 #include <std_msgs/msg/color_rgba.hpp>
 
-#include <ros2_kdb_msgs/srv/query_database.hpp>
+#include "air_interfaces/srv/get_entities.hpp"
 #include <nav2_msgs/action/navigate_to_pose.hpp>
 
 #include <tf2_ros/buffer.h>
@@ -55,6 +55,7 @@ private:
     geometry_msgs::msg::Point pos{};
 
     rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SharedPtr navigate_client{};
+    rclcpp::CallbackGroup::SharedPtr callback_group{};
     rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr goal_handle{};
     rclcpp::TimerBase::SharedPtr timer{};
     geometry_msgs::msg::Point pos_snapshot{};
@@ -62,7 +63,7 @@ private:
     std::unique_ptr<tf2_ros::Buffer> tf_buffer{};
     std::shared_ptr<tf2_ros::TransformListener> tf_listener{};
 
-    rclcpp::Client<ros2_kdb_msgs::srv::QueryDatabase>::SharedPtr query_client{};
+    rclcpp::Client<air_interfaces::srv::GetEntities>::SharedPtr entities_client{};
 
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr visualization_pub{};
 
@@ -90,6 +91,8 @@ private:
     void handle_drive_feedback(rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr goal, std::shared_ptr<const nav2_msgs::action::NavigateToPose::Feedback> const feedback);
 
     void handle_drive_result(rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::WrappedResult const &result);
+
+    bool goal_entity_found();
 
     /// @brief Tries to transform a point to a target frame
     /// @param in The point to transform

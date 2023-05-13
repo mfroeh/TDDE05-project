@@ -21,8 +21,6 @@ find_package(air_interfaces REQUIRED) # GetPosition
 find_package(nav2_msgs REQUIRED) # Odometry
 find_package(nav_msgs REQUIRED) # Slam toolbox
 find_package(geometry_msgs REQUIRED) # Point
-find_package(ros2_kdb_msgs REQUIRED) # Database
-find_package(air_simple_sim_msgs REQUIRED) # Semantic observation
 
 # Transformation
 find_package(tf2_ros REQUIRED)
@@ -77,10 +75,8 @@ ament_target_dependencies(
   "tf2"
   "tf2_geometry_msgs"
   "geometry_msgs"
-  "ros2_kdb_msgs"
   "visualization_msgs"
   "std_msgs"
-  "air_simple_sim_msgs"
   "TstML"
   "std_srvs"
   "irobot_create_msgs"
