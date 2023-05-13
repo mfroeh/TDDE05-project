@@ -15,6 +15,8 @@ from rclpy.action import ActionServer
 from air_interfaces.action import Goals
 from air_interfaces.srv import GetEntities
 from air_interfaces.msg import Entity
+from air_interfaces.srv import ExecuteTst
+
 
 #from math import sqrt
 
@@ -115,8 +117,14 @@ class planningNode(Node):
                     }
                 drive_to_human["children"].append(node)
 
-        with open(self.relPath /'plan.json', 'w') as outfile:
-            json.dump(plan, outfile)
+    #    with open(self.relPath /'plan.json', 'w') as outfile:
+    #        json.dump(plan, outfile)
+        
+        self.tst_cli = self.create_client(ExecuteTst,'execute_tst',callback_group=self.group)
+        self.tst_req = ExecuteTst.Request()
+        self.tst_req.tst = json.dumps(plan)
+        future = self.tst_cli.call_async(self.tst_req)
+
 
 
 
