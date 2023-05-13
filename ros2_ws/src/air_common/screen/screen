@@ -47,6 +47,18 @@ screen 14
 title "Navigation I"
 stuff "tdde05-start; start-tdde05; ros2 run air_navigation navigation_node\015"
 
+screen 15
+title "Database proxy"
+stuff "tdde05-start; start-tdde05; ros2 run air_database database_proxy\015"
+
+screen 16
+title "Semantic listener"
+stuff "tdde05-start; start-tdde05; ros2 run air_database semantic_listener\015"
+
+screen 17
+title "Semantic visualizer"
+stuff "tdde05-start; start-tdde05; ros2 run air_exploration semantic_visualizer\015"
+
 # Not related to what we built
 screen 20
 title "Simulator"
