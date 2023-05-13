@@ -123,6 +123,7 @@ private:
                                    {
             RCLCPP_INFO(get_logger(), "Got response");
             auto entities{future.get()->entities};
+            RCLCPP_INFO(this->get_logger(), "Received %d entities", entities.size());
             visualize(entities); });
     };
 };

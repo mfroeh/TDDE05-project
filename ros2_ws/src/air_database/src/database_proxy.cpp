@@ -65,8 +65,8 @@ private:
 
           auto parsed_result{json::parse(future.get()->result)};
 
-          RCLCPP_INFO(this->get_logger(), "Object: %s\n",
-                      future.get()->result.c_str());
+          //RCLCPP_INFO(this->get_logger(), "Object: %s\n",
+           //           future.get()->result.c_str());
 
           std::vector<Entity> ret{};
 
@@ -88,6 +88,7 @@ private:
                 temp.klass == "office")
               ret.push_back(temp);
           }
+          RCLCPP_INFO(this->get_logger(), "Sending %d objects", ret.size());
           response->entities = ret;
         });
   }
