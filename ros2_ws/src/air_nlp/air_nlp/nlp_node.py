@@ -81,16 +81,26 @@ def find_object(i, words, slots):
     return None
 
 
-def find_quantity(words, slots):
-    for word, slot in zip(words, slots):
-        if is_quantity(slot):
-            if word == "a" or word == "an" or word == "some" or word == "one" or word == "1":
+def create_quantity(word):
+    if word == "a" or word == "an" or word == "some" or word == "one" or word == "1":
+        return 1
+    else:
+        try:
+            return int(word)
+        except Exception:
+            try:
+                return w2n.word_to_num(word)
+            except Exception:
                 return 1
-            else:
-                try:
-                    return int(word)
-                except Exception:
-                    return w2n.word_to_num(word)
+
+
+def find_quantity(i, words, slots):
+    for j, (word, slot) in enumerate(zip(words[i:], slots[i:])):
+        if is_quantity(slot):
+            return_value = create_quantity(word)
+            words.pop(j + i)
+            slots.pop(j + i)
+            return return_value
     return 1
 
 
@@ -198,8 +208,8 @@ class NlpNode(Node):
         self.get_logger().info('Result: {}'.format(result.success))
 
     def generate_goals(self, words, slots):
-        goals = [] # Current created goals
-        known_people = [] # People encountered so far
+        goals = []  # Current created goals
+        known_people = []  # People encountered so far
 
         i = 0
         while i < len(slots):
@@ -213,7 +223,8 @@ class NlpNode(Node):
             if slot == "B-goal.goto":
                 goal = Goal()
                 goal.type = "goto"
-                destination = find_destination(i, words, slots) # Finds and pops the nearest destination
+                # Finds and pops the nearest destination
+                destination = find_destination(i, words, slots)
                 if destination is None:
                     raise Exception("Could not find a destination for goto")
                 else:
@@ -225,7 +236,7 @@ class NlpNode(Node):
 
             elif slot == "B-goal.bring":
 
-                object = find_object(i, words, slots) # Finds and pops the nearest object
+                object = find_object(i, words, slots)  # Finds and pops the nearest object
                 destination = find_destination(i, words, slots)
 
                 if destination is None:
@@ -247,14 +258,14 @@ class NlpNode(Node):
                             # If there are known people and no destination is found
                             # generate the bring goal for the latest known person
 
-                            quantity = find_quantity(words[i:], slots[i:])
+                            quantity = find_quantity(i, words, slots)
                             for k in range(quantity):
                                 add_bring_goal(object, known_people[-1], goals)
                 else:
 
                     # If a destination is found, find the quantity and generate bring goals
 
-                    quantity = find_quantity(words[i:], slots[i:])
+                    quantity = find_quantity(i, words, slots)
                     add_known_person(destination.name, known_people)
 
                     for k in range(quantity):
@@ -282,6 +293,19 @@ class NlpNode(Node):
                 goal.object = create_object(word)
                 goal.destination = last_goal.destination
                 goals.append(goal)
+
+            elif is_quantity(slot) and len(goals):
+                last_goal = goals[-1]
+                if last_goal.type != "bring":
+                    raise Exception("I could not understand composite goals")
+                quantity = create_quantity(word)
+                object = find_object(i, words, slots)
+                for k in range(quantity):
+                    goal = Goal()
+                    goal.type = "bring"
+                    goal.object = object
+                    goal.destination = last_goal.destination
+                    goals.append(goal)
             i += 1
 
         for goal in goals:
