@@ -3,7 +3,7 @@
 #include <string>
 #include <QPoint>
 
-char const *EXPLORE_EXECUTOR_NODE_NAME = "drive_to_node";
+char const *NAVIGATE_EXECUTOR_NODE_NAME = "drive_to_node";
 
 using namespace rclcpp;
 using namespace rclcpp_action;
@@ -12,23 +12,23 @@ using DriveTo = nav2_msgs::action::NavigateToPose;
 using GoalHandleDriveTo = rclcpp_action::ClientGoalHandle<DriveTo>;
 
 
-NavigateExecutor::NavigateExecutor()(TstML::TSTNode const *tst_node, TstML::Executor::AbstractExecutionContext *context) : TstML::Executor::AbstractNodeExecutor{tst_node, context}
+NavigateExecutor::NavigateExecutor(TstML::TSTNode const *tst_node, TstML::Executor::AbstractExecutionContext *context) : TstML::Executor::AbstractNodeExecutor{tst_node, context}
 {
 
 	static int counter{};
 
-	m_node = Node::make_shared(EXPLORE_EXECUTOR_NODE_NAME + std::to_string(++counter));
-	executor.add_node(m_node);
-	executor_thread = std::thread([this]()
-	{ executor.spin(); });
+	m_node = Node::make_shared(NAVIGATE_EXECUTOR_NODE_NAME + std::to_string(++counter));
+	m_executor.add_node(m_node);
+	m_executor_thread = std::thread([this]()
+	{ m_executor.spin(); });
 
 	navigate_client = rclcpp_action::create_client<DriveTo>(m_node, "navigate_to_pose");
 }
 
 NavigateExecutor::~NavigateExecutor()
 {
-	executor.cancel();
-	executor_thread.join();
+	m_executor.cancel();
+	m_executor_thread.join();
 }
 
 TstML::Executor::ExecutionStatus NavigateExecutor::start()
@@ -112,12 +112,12 @@ TstML::Executor::ExecutionStatus NavigateExecutor::resume()
 
 TstML::Executor::ExecutionStatus NavigateExecutor::stop()
 {
-	navigate_client->async_cancel_goal(goal_handle);
+	navigate_client->async_cancel_goal(m_goal_handle);
 	return TstML::Executor::ExecutionStatus::Finished();
 }
 
 TstML::Executor::ExecutionStatus NavigateExecutor::abort()
 {
-	navigate_client->async_cancel_goal(goal_handle);
+	navigate_client->async_cancel_goal(m_goal_handle);
 	return TstML::Executor::ExecutionStatus::Aborted();
 }

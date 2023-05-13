@@ -23,7 +23,7 @@ title "Exploration II"
 stuff "tdde05-start; start-tdde05; ros2 service call /execute_tst air_interfaces/srv/ExecuteTst '{tst_file: \"$HOME/TDDE05/ros2_ws/src/air_exploration/tsts/explore.json\"}'"
 
 screen 2
-title "Insert objects into database" 
+title "Insert objects into database"
 stuff "tdde05-start; start-tdde05; ros2 run air_simple_sim generate_rdf office_1; ros2 service call /kdb_server/insert_triples  ros2_kdb_msgs/srv/InsertTriples \"\ngraphname: 'semanticobject'\nformat: 'ttl'\ncontent: '`ros2 run air_simple_sim generate_rdf office_1`'\""
 
 # Always run
@@ -59,6 +59,14 @@ screen 17
 title "Semantic visualizer"
 stuff "tdde05-start; start-tdde05; ros2 run air_exploration semantic_visualizer\015"
 
+screen 18
+title "Webserver"
+stuff "cd $HOME/TDDE05/webpages/ && python -m SimpleHTTPServer 7000\015"
+
+screen 19
+title "Rosbridge Server"
+stuff "tdde05-start; start-tdde05; ros2 launch rosbridge_server rosbridge_websocket.launch\015"
+
 # Not related to what we built
 screen 20
 title "Simulator"
@@ -75,5 +83,5 @@ stuff "tdde05-start; start-tdde05; rqt\015"
 
 screen 23
 title "launch database server"
-stuff "tdde05-start; start-tdde05; ros2 run ros2_kdb server\015" 
+stuff "tdde05-start; start-tdde05; ros2 run ros2_kdb server\015"
 #rm -rf $HOME/.lrs_kdb/stores/
