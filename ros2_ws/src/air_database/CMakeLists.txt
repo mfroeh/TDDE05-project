@@ -21,7 +21,7 @@ find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(ros2_kdb_msgs REQUIRED) # Database
 find_package(air_simple_sim_msgs REQUIRED) # Semantic observation
-
+find_package(air_interfaces REQUIRED)
 
 add_executable(semantic_listener src/semantic_listener.cpp)
 target_include_directories(semantic_listener PUBLIC
@@ -49,6 +49,7 @@ ament_target_dependencies(
     database_proxy
     "rclcpp"
     "ros2_kdb_msgs"
+    "air_interfaces"
     )
 target_link_libraries(database_proxy nlohmann_json)
 

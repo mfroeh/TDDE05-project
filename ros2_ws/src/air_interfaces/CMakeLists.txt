@@ -19,8 +19,10 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Person.msg"
   "msg/People.msg"
   "msg/Destination.msg"
+  "msg/Entity.msg"
   "srv/GetPosition.srv"
   "srv/ExecuteTst.srv"
+  "srv/GetEntities.srv"
   DEPENDENCIES geometry_msgs
 )
 

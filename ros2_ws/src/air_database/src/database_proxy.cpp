@@ -10,11 +10,16 @@
 // json
 #include <nlohmann/json.hpp>
 
+#include "air_interfaces/msg/entity.hpp"
+#include "air_interfaces/srv/get_entities.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 using std::placeholders::_1;
+using std::placeholders::_2;
 using QueryServiceT = ros2_kdb_msgs::srv::QueryDatabase;
 using json = nlohmann::json;
+using Entity = air_interfaces::msg::Entity;
+using GetEntityT = air_interfaces::srv::GetEntity;
 
 class DatabaseProxy : public rclcpp::Node {
 public:
@@ -22,19 +27,18 @@ public:
     query_client =
         this->create_client<QueryServiceT>("/kdb_server/sparql_query");
     query_client->wait_for_service();
-    std::string graph_name{"semanticobject"};
-    queryAll(graph_name);
+    service = this->->create_service<GetEntityT>(
+        "get_entities", std::bind(&get_entities, this, _1, _2));
   }
 
 private:
-  struct Object {
-    std::string uuid;
-    std::string klass;
-    double x;
-    double y;
-  };
 
-  std::vector<Object> queryAll(std::string const& graph_name) {
+  void get_entities(std::shared_ptr<GetEntityT::Request> const request, std::shared_ptr<GetEntityT::Response> response){
+    std::string graph_name{"semanticobject"};
+    response->entities = query_all(graph_name);
+  }
+
+  std::vector<Entity> query_all(std::string const& graph_name) {
 
     RCLCPP_INFO(this->get_logger(), "Starting query\n");
 
@@ -62,7 +66,7 @@ private:
     RCLCPP_INFO(this->get_logger(), "Object: %s\n",
                 future.get()->result.c_str());
 
-    std::vector<Object> ret{};
+    std::vector<Entity> ret{};
 
     if (!future.get()->success) {
       RCLCPP_ERROR(get_logger(),
@@ -72,16 +76,19 @@ private:
 
     auto bindings = parsed_result[0]["results"]["bindings"];
     for (auto&& obj : bindings) {
-      Object temp{obj["obj_id"]["value"].get<std::string>(),
+      Entity temp{obj["obj_id"]["value"].get<std::string>(),
                   obj["class"]["value"].get<std::string>(),
                   stod(obj["x"]["value"].get<std::string>()),
                   stod(obj["y"]["value"].get<std::string>())};
-      ret.push_back(temp);
+      if (temp.klass == "human" || temp.klass == "vendingmachine" ||
+          temp.klass == "office")
+        ret.push_back(temp);
     }
     return ret;
   }
 
   rclcpp::Client<QueryServiceT>::SharedPtr query_client;
+  rclcpp::Service<air_interfaces::srv::GetEntities>::SharedPtr service;
 };
 
 int main(int argc, char* argv[]) {
