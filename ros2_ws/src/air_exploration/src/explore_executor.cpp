@@ -1,5 +1,6 @@
 #include "explore_executor.hpp"
 
+#include <chrono>
 #include <string>
 
 char const *EXPLORE_EXECUTOR_NODE_NAME = "explore_node";
@@ -11,6 +12,7 @@ char const *GRAPHNAME = "semanticobject";
 
 using namespace rclcpp;
 using namespace rclcpp_action;
+using namespace std::chrono_literals;
 
 using geometry_msgs::msg::Point;
 using geometry_msgs::msg::PointStamped;
@@ -160,7 +162,24 @@ void ExploreExecutor::drive_to_next_frontier()
     send_goal_options.feedback_callback = std::bind(&Self::handle_drive_feedback, this, _1, _2);
     send_goal_options.result_callback = std::bind(&Self::handle_drive_result, this, _1);
     navigate_client->async_send_goal(msg, send_goal_options);
+
+    pos_snapshot = pos;
+    timer = node->create_wall_timer(2s, std::bind(&Self::check_stuck, this));
     RCLCPP_INFO(node->get_logger(), "Started moving to frontier at x: %f, y: %f", p.x, p.y);
+}
+
+void ExploreExecutor::check_stuck()
+{
+    if (euclidean(pos_snapshot, pos) < 0.1)
+    {
+        RCLCPP_INFO(node->get_logger(), "Drive: Robot is stuck, cancelling...");
+        navigate_client->async_cancel_goal(goal_handle);
+        timer->cancel();
+    }
+    else
+    {
+        pos_snapshot = pos;
+    }
 }
 
 void ExploreExecutor::handle_map(OccupancyGrid::SharedPtr const msg)
