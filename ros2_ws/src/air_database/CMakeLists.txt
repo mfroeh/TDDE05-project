@@ -40,7 +40,19 @@ ament_target_dependencies(
     )
 target_link_libraries(semantic_listener nlohmann_json)
 
-install(TARGETS semantic_listener
+add_executable(database_proxy src/database_proxy.cpp)
+target_include_directories(database_proxy PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+target_compile_features(database_proxy PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+ament_target_dependencies(
+    database_proxy
+    "rclcpp"
+    "ros2_kdb_msgs"
+    )
+target_link_libraries(database_proxy nlohmann_json)
+
+install(TARGETS semantic_listener database_proxy
     DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
