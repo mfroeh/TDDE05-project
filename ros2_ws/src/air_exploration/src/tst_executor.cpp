@@ -23,6 +23,7 @@
 #include "air_interfaces/srv/execute_tst.hpp"
 #include "explore_executor.hpp"
 #include "undock_executor.hpp"
+#include "navigate_executor.hpp"
 
 using namespace rclcpp;
 using namespace TstML;
@@ -62,12 +63,11 @@ public:
         tst_executor_registry->registerNodeExecutor<DefaultNodeExecutor::Concurrent>(tst_registry->model("conc"));
         tst_executor_registry->registerNodeExecutor<ExploreExecutor>(tst_registry->model("explore"));
         tst_executor_registry->registerNodeExecutor<UndockExecutor>(tst_registry->model("undock"));
+	tst_executor_registry->registerNodeExecutor<NavigateExecutor>(tst_registry->model("drive-to"));
 
         // TODO: Register driver
         // tst_executor_registry->registerNodeExecutor<DockExecutor>(
         //     tst_registry->model("dock"));
-        // tst_executor_registry->registerNodeExecutor<DriveToExecutor>(
-        //     tst_registry->model("drive-to"));
         // tst_executor_registry->registerNodeExecutor<RecordSemanticExecutor>(
         //     tst_registry->model("record-semantic"));
     }

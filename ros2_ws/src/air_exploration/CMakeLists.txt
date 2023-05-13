@@ -59,7 +59,7 @@ ament_target_dependencies(
 )
 
 # tst_executor
-add_executable(tst_executor src/tst_executor src/explore_executor src/frontier src/undock_executor) # Add new executable
+add_executable(tst_executor src/tst_executor src/explore_executor src/navigate_executor src/frontier src/undock_executor) # Add new executable
 target_include_directories(tst_executor PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
