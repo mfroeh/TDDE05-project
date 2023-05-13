@@ -19,26 +19,29 @@ using std::placeholders::_2;
 using QueryServiceT = ros2_kdb_msgs::srv::QueryDatabase;
 using json = nlohmann::json;
 using Entity = air_interfaces::msg::Entity;
-using GetEntityT = air_interfaces::srv::GetEntity;
+using GetEntityT = air_interfaces::srv::GetEntities;
 
-class DatabaseProxy : public rclcpp::Node {
+class DatabaseProxy : public rclcpp::Node
+{
 public:
-  DatabaseProxy() : Node("database_proxy") {
+  DatabaseProxy() : Node("database_proxy")
+  {
     query_client =
         this->create_client<QueryServiceT>("/kdb_server/sparql_query");
     query_client->wait_for_service();
-    service = this->->create_service<GetEntityT>(
-        "get_entities", std::bind(&get_entities, this, _1, _2));
+    service = this->create_service<GetEntityT>(
+        "get_entities", std::bind(&DatabaseProxy::get_entities, this, _1, _2));
   }
 
 private:
-
-  void get_entities(std::shared_ptr<GetEntityT::Request> const request, std::shared_ptr<GetEntityT::Response> response){
+  void get_entities(std::shared_ptr<GetEntityT::Request> const, std::shared_ptr<GetEntityT::Response> response)
+  {
     std::string graph_name{"semanticobject"};
     response->entities = query_all(graph_name);
   }
 
-  std::vector<Entity> query_all(std::string const& graph_name) {
+  std::vector<Entity> query_all(std::string const &graph_name)
+  {
 
     RCLCPP_INFO(this->get_logger(), "Starting query\n");
 
@@ -68,22 +71,27 @@ private:
 
     std::vector<Entity> ret{};
 
-    if (!future.get()->success) {
+    if (!future.get()->success)
+    {
       RCLCPP_ERROR(get_logger(),
                    "Query: /kdb_server/sparql_query wasn't successful!");
       return ret;
     }
 
     auto bindings = parsed_result[0]["results"]["bindings"];
-    for (auto&& obj : bindings) {
-      Entity temp{obj["obj_id"]["value"].get<std::string>(),
-                  obj["class"]["value"].get<std::string>(),
-                  stod(obj["x"]["value"].get<std::string>()),
-                  stod(obj["y"]["value"].get<std::string>())};
+    for (auto &&obj : bindings)
+    {
+      Entity temp{};
+      temp.uuid = obj["obj_id"]["value"].get<std::string>();
+      temp.klass = obj["class"]["value"].get<std::string>();
+      temp.x = stod(obj["x"]["value"].get<std::string>());
+      temp.y = stod(obj["y"]["value"].get<std::string>());
+
       if (temp.klass == "human" || temp.klass == "vendingmachine" ||
           temp.klass == "office")
         ret.push_back(temp);
     }
+
     return ret;
   }
 
@@ -91,7 +99,8 @@ private:
   rclcpp::Service<air_interfaces::srv::GetEntities>::SharedPtr service;
 };
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
   rclcpp::init(argc, argv);
   rclcpp::executors::MultiThreadedExecutor executor;
   auto node = std::make_shared<DatabaseProxy>();
