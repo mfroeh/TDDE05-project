@@ -238,16 +238,16 @@ void ExploreExecutor::visualize_frontier(std::deque<Frontier> frontiers)
     Marker points_marker{};
     points_marker.header.frame_id = "map";
     points_marker.header.stamp = node->now();
-    points_marker.ns = "blue_balls";
+    points_marker.ns = "frontier_points";
     points_marker.id = 0;
     points_marker.type = Marker::SPHERE_LIST;
     points_marker.action = Marker::ADD;
     points_marker.scale.x = 0.2;
     points_marker.scale.y = 0.2;
     points_marker.scale.z = 0.2;
-    points_marker.color.r = 0.0;
-    points_marker.color.g = 0.0;
-    points_marker.color.b = 1.0;
+    points_marker.color.r = 1.0;
+    points_marker.color.g = 0.65;
+    points_marker.color.b = 0.0;
     points_marker.color.a = 1.0;
     points_marker.points = all_points.points;
 
@@ -255,7 +255,7 @@ void ExploreExecutor::visualize_frontier(std::deque<Frontier> frontiers)
     Marker centroids_marker{};
     centroids_marker.header.frame_id = "map";
     centroids_marker.header.stamp = node->now();
-    centroids_marker.ns = "red_cubes";
+    centroids_marker.ns = "frontier_centroids";
     centroids_marker.id = 1;
     centroids_marker.type = Marker::CUBE_LIST;
     centroids_marker.action = Marker::ADD;
@@ -263,7 +263,7 @@ void ExploreExecutor::visualize_frontier(std::deque<Frontier> frontiers)
     centroids_marker.scale.y = 0.2;
     centroids_marker.scale.z = 0.2;
     centroids_marker.color.r = 1.0;
-    centroids_marker.color.g = 0.0;
+    centroids_marker.color.g = 1.0;
     centroids_marker.color.b = 0.0;
     centroids_marker.color.a = 1.0;
     centroids_marker.points = frontier_centroids;
@@ -345,7 +345,7 @@ bool ExploreExecutor::goal_entity_found()
 {
     using air_interfaces::msg::Entity;
 
-#define CONTAINER
+// #define CONTAINER
 #ifdef CONTAINER
     return false;
 #endif
