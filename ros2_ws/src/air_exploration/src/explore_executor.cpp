@@ -177,13 +177,13 @@ void ExploreExecutor::drive_to_next_frontier()
     navigate_client->async_send_goal(msg, send_goal_options);
 
     pos_snapshot = pos;
-    timer = node->create_wall_timer(3s, std::bind(&Self::check_stuck, this));
+    timer = node->create_wall_timer(4s, std::bind(&Self::check_stuck, this));
     RCLCPP_INFO(node->get_logger(), "Started moving to frontier at x: %f, y: %f", p.x, p.y);
 }
 
 void ExploreExecutor::check_stuck()
 {
-    if (euclidean(pos_snapshot, pos) < 0.1)
+    if (euclidean(pos_snapshot, pos) < 0.025)
     {
         RCLCPP_INFO(node->get_logger(), "Drive: Robot is stuck, cancelling...");
         navigate_client->async_cancel_goal(goal_handle);
