@@ -18,12 +18,24 @@
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 
+#include "air_interfaces/srv/get_entities.hpp"
+#include "air_interfaces/msg/entity.hpp"
+
 using air_simple_sim_msgs::msg::SemanticObservation;
 using std::placeholders::_1;
+using std::placeholders::_2;
 using json = nlohmann::json;
 using geometry_msgs::msg::PointStamped;
 using GetEntitiesT = air_interfaces::srv::GetEntities;
 using Entity = air_interfaces::msg::Entity;
+
+template< typename tPair >
+struct second_t {
+    typename tPair::second_type operator()( const tPair& p ) const { return p.second; }
+};
+
+template< typename tMap >
+second_t< typename tMap::value_type > second( const tMap& ) { return second_t< typename tMap::value_type >(); }
 
 class SemanticListener : public rclcpp::Node {
 public:
@@ -33,8 +45,8 @@ public:
         topic, 10, std::bind(&SemanticListener::semantic_callback, this, _1));
     tf_buffer = std::make_unique<tf2_ros::Buffer>(this->get_clock());
     tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
-    service = this->create_service<GetEntityT>(
-        "get_entities", std::bind(&DatabaseProxy::get_entities, this, _1, _2));
+    service = this->create_service<GetEntitiesT>(
+        "get_entities", std::bind(&SemanticListener::get_entities, this, _1, _2));
   }
 
 private:
@@ -65,8 +77,8 @@ private:
     map.insert_or_assign(entity.uuid, entity);
   }
 
-  void get_entities(std::shared_ptr<GetEntityT::Request> const,
-                    std::shared_ptr<GetEntityT::Response> response) {
+  void get_entities(std::shared_ptr<GetEntitiesT::Request> const,
+                    std::shared_ptr<GetEntitiesT::Response> response) {
     std::transform(map.begin(), map.end(),
                    std::back_inserter(response->entities), second(map));
   }
