@@ -241,8 +241,9 @@ class planningNode(Node):
         self.vendingsAdded = []
         self.coords = {}
         for row in self.data:
-            classes = row.klass
-            tags = row.tag.lower()
+            
+            classes = row.klass.lower()
+            tags = row.tags
             uuid = row.uuid
             x=row.x
             y=row.y
@@ -252,36 +253,38 @@ class planningNode(Node):
             
             if classes == "human":
                 
-                objList.append(tags + " - person")
-                self.coords[tags] = [x,y]
+                objList.append(tags[0].lower() + " - person")
+                self.coords[tags[0].lower()] = [x,y]
 
 
             if classes == "office":
-                objList.append("officeOf" + tags + " - office")
-                self.coords["o" + tags] = [x,y]
+                objList.append("officeof" + tags[0].lower() + " - office")
+                self.coords["o" + tags[0].lower()] = [x,y]
 
 
             if classes == "vendingmachine":
-                if uuid not in self.vendingsAdded:
-                    objList.append("vendingMachine" + str(uuid) + " - vending")
-                    self.vendingsAdded.append(uuid)
-                    self.coords[uuid] = [x,y]
+                objList.append("vendingMachine" + str(uuid) + " - vending")
 
-                initList.append("(vendingHas " + "vendingMachine" + str(uuid) + " " + tags + ")" )
+                for tag in tags:
+                    #self.vendingsAdded.append(uuid)
+                    self.coords[uuid] = [x,y]
+                    initList.append("(vendingHas " + "vendingMachine" + str(uuid) + " " + tag + ")" )
                # vendingIndex = vendingIndex + 1
         #print(initList)
        
        # fileName = "problem" + str(self.problemIndex-1) + ".pddl"
         fileName = "problem.pddl"
-
+     #   print(self.coords)
         for goal in goals:
             if goal.type == "goto":
 
                     explore = True
-                    if goal.destination.name in self.coords.keys():
-                        explore = False
+
 
                     if goal.destination.type == "person":
+                        if goal.destination.name.lower() in self.coords.keys():
+                            explore = False
+                        
                         if explore:
                            goalList.append("(explored " + goal.destination.name + ")") 
                            initList.append("(unexplored " + goal.destination.name + ")")
@@ -292,9 +295,15 @@ class planningNode(Node):
 
                     
                     if goal.destination.type == "office":
+                        temp = "o" + goal.destination.name
+                        print(temp)
+                        if temp.lower() in self.coords.keys():
+                            explore = False
+                        
+                        
                         if explore:
-                            goalList.append("(explored officeof " + goal.destination.name + ")") 
-                            initList.append("(unexplored officeOf" + goal.destination.name + ")")
+                            goalList.append("(explored officeof" + goal.destination.name + ")") 
+                            initList.append("(unexplored officeof" + goal.destination.name + ")")
                             objList.append("officeof " + goal.destination.name + " - person")
 
 
