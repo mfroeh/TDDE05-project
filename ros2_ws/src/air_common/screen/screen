@@ -16,7 +16,7 @@ bindkey ^e copy
 # Interactive
 screen 0
 title "NLP II"
-stuff "tdde05-start; start-tdde05; ros2 topic pub /input_prompt std_msgs/msg/String \"data: PROMPT\" --once"
+stuff "tdde05-start; start-tdde05; ros2 topic pub /input_prompt std_msgs/msg/String \"data: Go to Erik's office\" --once"
 
 screen 1
 title "Exploration II"

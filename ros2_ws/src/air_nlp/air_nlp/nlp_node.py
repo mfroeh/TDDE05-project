@@ -194,7 +194,7 @@ class NlpNode(Node):
 
         words = []
         for word in line.split():
-            words.append(word)
+            words.append(word.strip(",.:;?!-/"))
 
         self.get_logger().info('The intent is: "%s"' % intent)
         self.get_logger().info('The slots are:')
