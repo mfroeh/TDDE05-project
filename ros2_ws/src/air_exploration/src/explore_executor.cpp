@@ -127,7 +127,7 @@ void ExploreExecutor::generate_frontiers(Map map)
 
     // Ascending by distance to robot
     auto nearest{[this](Frontier const &a, Frontier const &b)
-                 { return euclidean(a.centroid, pos) < euclidean(b.centroid, pos); }};
+                 { return euclidean(a.centroid, pos.point) < euclidean(b.centroid, pos.point); }};
 
     // Descending by size
     auto biggest{[this](Frontier const &a, Frontier const &b)
@@ -183,7 +183,7 @@ void ExploreExecutor::drive_to_next_frontier()
 
 void ExploreExecutor::check_stuck()
 {
-    if (euclidean(pos_snapshot, pos) < 0.025)
+    if (pos_snapshot.header.stamp != pos.header.stamp && euclidean(pos_snapshot.point, pos.point) < 0.025)
     {
         RCLCPP_INFO(node->get_logger(), "Drive: Robot is stuck, cancelling...");
         navigate_client->async_cancel_goal(goal_handle);
@@ -211,7 +211,7 @@ void ExploreExecutor::handle_odom(Odometry::SharedPtr const msg)
     PointStamped out{};
     if (try_transform_to(in, out, "map", false))
     {
-        pos = out.point;
+        pos = out;
         RCLCPP_INFO(node->get_logger(), "Updated position");
     }
 }
@@ -326,15 +326,13 @@ void ExploreExecutor::handle_drive_result(rclcpp_action::ClientGoalHandle<Naviga
             return;
         }
 
-        if (euclidean(pos, current->centroid) < 0.25)
+        if (euclidean(pos.point, current->centroid) < 0.25)
         {
             RCLCPP_INFO(node->get_logger(), "Drive: Goal was canceled, but we are close enough to the goal. Creating new frontiers...");
             generate_frontiers(Map{map});
         }
-        else
-        {
-            drive_to_next_frontier();
-        }
+
+        drive_to_next_frontier();
         return;
     default:
         RCLCPP_ERROR(node->get_logger(), "Unknown result code");
@@ -347,7 +345,7 @@ bool ExploreExecutor::goal_entity_found()
 {
     using air_interfaces::msg::Entity;
 
-// #define CONTAINER
+#define CONTAINER
 #ifdef CONTAINER
     return false;
 #endif

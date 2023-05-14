@@ -52,13 +52,13 @@ private:
     rclcpp::Subscription<OccupancyGrid>::SharedPtr map_sub{};
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub{};
     nav_msgs::msg::OccupancyGrid::SharedPtr map{};
-    geometry_msgs::msg::Point pos{};
+    geometry_msgs::msg::PointStamped pos{};
 
     rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SharedPtr navigate_client{};
     rclcpp::CallbackGroup::SharedPtr callback_group{};
     rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr goal_handle{};
     rclcpp::TimerBase::SharedPtr timer{};
-    geometry_msgs::msg::Point pos_snapshot{};
+    geometry_msgs::msg::PointStamped pos_snapshot{};
 
     std::unique_ptr<tf2_ros::Buffer> tf_buffer{};
     std::shared_ptr<tf2_ros::TransformListener> tf_listener{};
