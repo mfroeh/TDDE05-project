@@ -6,6 +6,7 @@
 
 // placeholders
 #include <functional>
+#include <chrono>
 
 // json
 #include <nlohmann/json.hpp>
@@ -53,14 +54,19 @@ private:
   // Callback called with a semantic observation, checks if it's already present
   // in DB and if not, adds it
   void semantic_callback(SemanticObservation const& msg) {
+    using namespace std::chrono_literals;
+
     if (msg.klass != "human" && msg.klass != "vendingmachine" &&
         msg.klass != "office") {
       return;
     }
     RCLCPP_INFO(this->get_logger(), "Received observation");
     PointStamped transformed_point{};
+    transformed_point = msg.point;
+    transformed_point.header.stamp = now() - rclcpp::Duration::from_seconds(0.1);
+
     try {
-      transformed_point = tf_buffer->transform(msg.point, "map");
+      transformed_point = tf_buffer->transform(transformed_point, "map");
     } catch (const tf2::TransformException& ex) {
       RCLCPP_INFO(this->get_logger(), "Could not transform %s to %s: %s",
                   msg.point.header.frame_id.c_str(), "map", ex.what());
