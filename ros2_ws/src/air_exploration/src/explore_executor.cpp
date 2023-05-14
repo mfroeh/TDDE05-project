@@ -48,7 +48,7 @@ ExploreExecutor::ExploreExecutor(TstML::TSTNode const *tst_node, TstML::Executor
     odom_sub = node->create_subscription<Odometry>("odom", 10, std::bind(&Self::handle_odom, this, _1));
 
     // Navigation client
-    callback_group = node->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    callback_group = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     navigate_client = rclcpp_action::create_client<NavigateToPose>(node, "navigate_to_pose", callback_group);
 
     // Transformations
@@ -62,8 +62,8 @@ ExploreExecutor::ExploreExecutor(TstML::TSTNode const *tst_node, TstML::Executor
     visualization_pub = node->create_publisher<MarkerArray>(FRONTIER_VISUALIZATION_TOPIC, 10);
 
     // Make sure all services are available
-    // assert(query_client->wait_for_service(std::chrono::seconds(1)));
-    // assert(navigate_client->wait_for_service(std::chrono::seconds(1)));
+    assert(entities_client->wait_for_service(2s));
+    assert(navigate_client->wait_for_action_server(2s));
 }
 
 ExploreExecutor::~ExploreExecutor()
@@ -77,12 +77,12 @@ TstML::Executor::ExecutionStatus ExploreExecutor::start()
     while (!map)
         RCLCPP_INFO(node->get_logger(), "Waiting for map...");
 
-    // TODO: If not found the guy
-    // if (goal_entity_found())
-    // {
-    //     executionFinished(TstML::Executor::ExecutionStatus::Finished());
-    //     return TstML::Executor::ExecutionStatus::Finished();
-    // }
+    if (goal_entity_found())
+    {
+        RCLCPP_INFO(node->get_logger(), "The guy was already found!");
+        executionFinished(TstML::Executor::ExecutionStatus::Finished());
+        return TstML::Executor::ExecutionStatus::Finished();
+    }
 
     generate_frontiers(Map{map});
     drive_to_next_frontier();
@@ -127,7 +127,7 @@ void ExploreExecutor::generate_frontiers(Map map)
 
     // Ascending by distance to robot
     auto nearest{[this](Frontier const &a, Frontier const &b)
-                 { return euclidean(a.centroid, pos) < euclidean(b.centroid, pos); }};
+                 { return euclidean(a.centroid, pos.point) < euclidean(b.centroid, pos.point); }};
 
     // Descending by size
     auto biggest{[this](Frontier const &a, Frontier const &b)
@@ -183,7 +183,7 @@ void ExploreExecutor::drive_to_next_frontier()
 
 void ExploreExecutor::check_stuck()
 {
-    if (euclidean(pos_snapshot, pos) < 0.1)
+    if (pos_snapshot.header.stamp != pos.header.stamp && euclidean(pos_snapshot.point, pos.point) < 0.025)
     {
         RCLCPP_INFO(node->get_logger(), "Drive: Robot is stuck, cancelling...");
         navigate_client->async_cancel_goal(goal_handle);
@@ -211,8 +211,8 @@ void ExploreExecutor::handle_odom(Odometry::SharedPtr const msg)
     PointStamped out{};
     if (try_transform_to(in, out, "map", false))
     {
-        pos = out.point;
-        // RCLCPP_INFO(node->get_logger(), "Updated position");
+        pos = out;
+        RCLCPP_INFO(node->get_logger(), "Updated position");
     }
 }
 
@@ -238,16 +238,16 @@ void ExploreExecutor::visualize_frontier(std::deque<Frontier> frontiers)
     Marker points_marker{};
     points_marker.header.frame_id = "map";
     points_marker.header.stamp = node->now();
-    points_marker.ns = "blue_balls";
+    points_marker.ns = "frontier_points";
     points_marker.id = 0;
     points_marker.type = Marker::SPHERE_LIST;
     points_marker.action = Marker::ADD;
     points_marker.scale.x = 0.2;
     points_marker.scale.y = 0.2;
     points_marker.scale.z = 0.2;
-    points_marker.color.r = 0.0;
-    points_marker.color.g = 0.0;
-    points_marker.color.b = 1.0;
+    points_marker.color.r = 1.0;
+    points_marker.color.g = 0.65;
+    points_marker.color.b = 0.0;
     points_marker.color.a = 1.0;
     points_marker.points = all_points.points;
 
@@ -255,7 +255,7 @@ void ExploreExecutor::visualize_frontier(std::deque<Frontier> frontiers)
     Marker centroids_marker{};
     centroids_marker.header.frame_id = "map";
     centroids_marker.header.stamp = node->now();
-    centroids_marker.ns = "red_cubes";
+    centroids_marker.ns = "frontier_centroids";
     centroids_marker.id = 1;
     centroids_marker.type = Marker::CUBE_LIST;
     centroids_marker.action = Marker::ADD;
@@ -263,7 +263,7 @@ void ExploreExecutor::visualize_frontier(std::deque<Frontier> frontiers)
     centroids_marker.scale.y = 0.2;
     centroids_marker.scale.z = 0.2;
     centroids_marker.color.r = 1.0;
-    centroids_marker.color.g = 0.0;
+    centroids_marker.color.g = 1.0;
     centroids_marker.color.b = 0.0;
     centroids_marker.color.a = 1.0;
     centroids_marker.points = frontier_centroids;
@@ -303,16 +303,15 @@ void ExploreExecutor::handle_drive_result(rclcpp_action::ClientGoalHandle<Naviga
     {
     case rclcpp_action::ResultCode::SUCCEEDED:
         RCLCPP_INFO(node->get_logger(), "Drive: Goal was succeeded");
-        // TODO: If not found the guy
-        // if (goal_entity_found())
-        // {
-        //     executionFinished(TstML::Executor::ExecutionStatus::Finished());
-        // }
-        // else
-        // {
+        if (goal_entity_found())
+        {
+            RCLCPP_INFO(node->get_logger(), "Drive: We found the guy. Finishing...");
+            executionFinished(TstML::Executor::ExecutionStatus::Finished());
+            return;
+        }
+
         generate_frontiers(Map{map});
         drive_to_next_frontier();
-        // }
         return;
     case rclcpp_action::ResultCode::ABORTED:
         RCLCPP_ERROR(node->get_logger(), "Drive: Goal was aborted: %d", static_cast<int>(result.code));
@@ -320,20 +319,20 @@ void ExploreExecutor::handle_drive_result(rclcpp_action::ClientGoalHandle<Naviga
         return;
     case rclcpp_action::ResultCode::CANCELED:
         RCLCPP_ERROR(node->get_logger(), "Drive: Goal was canceled");
-        // TODO: If not found the guy
-        // if (goal_entity_found())
-        // {
-        //     executionFinished(TstML::Executor::ExecutionStatus::Finished());
-        // }
-        if (euclidean(pos, current->centroid) < 0.25)
+        if (goal_entity_found())
+        {
+            RCLCPP_INFO(node->get_logger(), "Drive: We found the guy. Finishing...");
+            executionFinished(TstML::Executor::ExecutionStatus::Finished());
+            return;
+        }
+
+        if (euclidean(pos.point, current->centroid) < 0.25)
         {
             RCLCPP_INFO(node->get_logger(), "Drive: Goal was canceled, but we are close enough to the goal. Creating new frontiers...");
             generate_frontiers(Map{map});
         }
-        else
-        {
-            drive_to_next_frontier();
-        }
+
+        drive_to_next_frontier();
         return;
     default:
         RCLCPP_ERROR(node->get_logger(), "Unknown result code");
@@ -346,6 +345,11 @@ bool ExploreExecutor::goal_entity_found()
 {
     using air_interfaces::msg::Entity;
 
+// #define CONTAINER
+#ifdef CONTAINER
+    return false;
+#endif
+
     std::string kind{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "kind").toString().toStdString()};
     std::string name{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "name").toString().toStdString()};
 
@@ -354,17 +358,16 @@ bool ExploreExecutor::goal_entity_found()
     {
     }
 
-    // TODO: Entity needs a name member variable
     auto entries{future.get()->entities};
     return std::any_of(entries.begin(), entries.end(), [kind, name](Entity const &e)
-                       { return e.klass == kind && e.uuid == name; });
+                       { return e.klass == kind && e.tag == name; });
 }
 
 bool ExploreExecutor::try_transform_to(PointStamped in, PointStamped &out, std::string target, bool log) const
 {
     try
     {
-        // in.header.stamp = now() - Duration::from_seconds(0.1);
+        in.header.stamp = node->now() - Duration::from_seconds(0.1);
         out = tf_buffer->transform(in, target);
         if (log)
             RCLCPP_INFO(node->get_logger(), "Transformed from %s (%f, %f) to %s (%f, %f)", in.header.frame_id.c_str(), in.point.x, in.point.y, target.c_str(), out.point.x, out.point.y);
