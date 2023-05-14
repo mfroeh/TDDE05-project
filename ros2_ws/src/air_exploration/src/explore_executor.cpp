@@ -48,7 +48,7 @@ ExploreExecutor::ExploreExecutor(TstML::TSTNode const *tst_node, TstML::Executor
     odom_sub = node->create_subscription<Odometry>("odom", 10, std::bind(&Self::handle_odom, this, _1));
 
     // Navigation client
-    callback_group = node->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    callback_group = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     navigate_client = rclcpp_action::create_client<NavigateToPose>(node, "navigate_to_pose", callback_group);
 
     // Transformations
@@ -62,8 +62,8 @@ ExploreExecutor::ExploreExecutor(TstML::TSTNode const *tst_node, TstML::Executor
     visualization_pub = node->create_publisher<MarkerArray>(FRONTIER_VISUALIZATION_TOPIC, 10);
 
     // Make sure all services are available
-    // assert(query_client->wait_for_service(std::chrono::seconds(1)));
-    // assert(navigate_client->wait_for_service(std::chrono::seconds(1)));
+    assert(entities_client->wait_for_service(2s));
+    assert(navigate_client->wait_for_action_server(2s));
 }
 
 ExploreExecutor::~ExploreExecutor()
@@ -77,12 +77,12 @@ TstML::Executor::ExecutionStatus ExploreExecutor::start()
     while (!map)
         RCLCPP_INFO(node->get_logger(), "Waiting for map...");
 
-    // TODO: If not found the guy
-    // if (goal_entity_found())
-    // {
-    //     executionFinished(TstML::Executor::ExecutionStatus::Finished());
-    //     return TstML::Executor::ExecutionStatus::Finished();
-    // }
+    if (goal_entity_found())
+    {
+        RCLCPP_INFO(node->get_logger(), "The guy was already found!");
+        executionFinished(TstML::Executor::ExecutionStatus::Finished());
+        return TstML::Executor::ExecutionStatus::Finished();
+    }
 
     generate_frontiers(Map{map});
     drive_to_next_frontier();
@@ -177,7 +177,7 @@ void ExploreExecutor::drive_to_next_frontier()
     navigate_client->async_send_goal(msg, send_goal_options);
 
     pos_snapshot = pos;
-    timer = node->create_wall_timer(4s, std::bind(&Self::check_stuck, this));
+    timer = node->create_wall_timer(3s, std::bind(&Self::check_stuck, this));
     RCLCPP_INFO(node->get_logger(), "Started moving to frontier at x: %f, y: %f", p.x, p.y);
 }
 
@@ -303,16 +303,15 @@ void ExploreExecutor::handle_drive_result(rclcpp_action::ClientGoalHandle<Naviga
     {
     case rclcpp_action::ResultCode::SUCCEEDED:
         RCLCPP_INFO(node->get_logger(), "Drive: Goal was succeeded");
-        // TODO: If not found the guy
-        // if (goal_entity_found())
-        // {
-        //     executionFinished(TstML::Executor::ExecutionStatus::Finished());
-        // }
-        // else
-        // {
+        if (goal_entity_found())
+        {
+            RCLCPP_INFO(node->get_logger(), "Drive: We found the guy. Finishing...");
+            executionFinished(TstML::Executor::ExecutionStatus::Finished());
+            return;
+        }
+
         generate_frontiers(Map{map});
         drive_to_next_frontier();
-        // }
         return;
     case rclcpp_action::ResultCode::ABORTED:
         RCLCPP_ERROR(node->get_logger(), "Drive: Goal was aborted: %d", static_cast<int>(result.code));
@@ -320,11 +319,13 @@ void ExploreExecutor::handle_drive_result(rclcpp_action::ClientGoalHandle<Naviga
         return;
     case rclcpp_action::ResultCode::CANCELED:
         RCLCPP_ERROR(node->get_logger(), "Drive: Goal was canceled");
-        // TODO: If not found the guy
-        // if (goal_entity_found())
-        // {
-        //     executionFinished(TstML::Executor::ExecutionStatus::Finished());
-        // }
+        if (goal_entity_found())
+        {
+            RCLCPP_INFO(node->get_logger(), "Drive: We found the guy. Finishing...");
+            executionFinished(TstML::Executor::ExecutionStatus::Finished());
+            return;
+        }
+
         if (euclidean(pos, current->centroid) < 0.25)
         {
             RCLCPP_INFO(node->get_logger(), "Drive: Goal was canceled, but we are close enough to the goal. Creating new frontiers...");
@@ -346,6 +347,11 @@ bool ExploreExecutor::goal_entity_found()
 {
     using air_interfaces::msg::Entity;
 
+// #define CONTAINER
+#ifdef CONTAINER
+    return false;
+#endif
+
     std::string kind{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "kind").toString().toStdString()};
     std::string name{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "name").toString().toStdString()};
 
@@ -354,10 +360,9 @@ bool ExploreExecutor::goal_entity_found()
     {
     }
 
-    // TODO: Entity needs a name member variable
     auto entries{future.get()->entities};
     return std::any_of(entries.begin(), entries.end(), [kind, name](Entity const &e)
-                       { return e.klass == kind && e.uuid == name; });
+                       { return e.klass == kind && e.tag == name; });
 }
 
 bool ExploreExecutor::try_transform_to(PointStamped in, PointStamped &out, std::string target, bool log) const
