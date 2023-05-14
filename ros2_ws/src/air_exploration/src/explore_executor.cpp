@@ -212,7 +212,7 @@ void ExploreExecutor::handle_odom(Odometry::SharedPtr const msg)
     if (try_transform_to(in, out, "map", false))
     {
         pos = out.point;
-        // RCLCPP_INFO(node->get_logger(), "Updated position");
+        RCLCPP_INFO(node->get_logger(), "Updated position");
     }
 }
 
@@ -369,7 +369,7 @@ bool ExploreExecutor::try_transform_to(PointStamped in, PointStamped &out, std::
 {
     try
     {
-        // in.header.stamp = now() - Duration::from_seconds(0.1);
+        in.header.stamp = node->now() - Duration::from_seconds(0.1);
         out = tf_buffer->transform(in, target);
         if (log)
             RCLCPP_INFO(node->get_logger(), "Transformed from %s (%f, %f) to %s (%f, %f)", in.header.frame_id.c_str(), in.point.x, in.point.y, target.c_str(), out.point.x, out.point.y);
