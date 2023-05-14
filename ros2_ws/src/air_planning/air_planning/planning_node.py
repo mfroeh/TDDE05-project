@@ -102,7 +102,7 @@ class planningNode(Node):
                 klass = "person"
                 to = action[3]
                 if "officeof" in to:
-                    to = to.replace("officeof","o")
+                    to = to.replace("officeof","")
                     klass = "office"
 
                 node ={
@@ -111,7 +111,7 @@ class planningNode(Node):
                         "name": "explore",
                         "params": {
                             "kind": klass,
-                            "name": to, #TODO
+                            "name": to, 
                             "policy": "biggest",
                             "minsize": 15 
                         }
@@ -282,7 +282,7 @@ class planningNode(Node):
 
 
                     if goal.destination.type == "person":
-                        if goal.destination.name.lower() in self.coords.keys():
+                        if goal.destination.name.lower() in self.coords:
                             explore = False
                         
                         if explore:
@@ -297,14 +297,14 @@ class planningNode(Node):
                     if goal.destination.type == "office":
                         temp = "o" + goal.destination.name
                         print(temp)
-                        if temp.lower() in self.coords.keys():
+                        if temp.lower() in self.coords:
                             explore = False
                         
                         
                         if explore:
                             goalList.append("(explored officeof" + goal.destination.name + ")") 
                             initList.append("(unexplored officeof" + goal.destination.name + ")")
-                            objList.append("officeof " + goal.destination.name + " - person")
+                            objList.append("officeof" + goal.destination.name + " - person")
 
 
                         else:
