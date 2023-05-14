@@ -34,8 +34,10 @@ def is_object(x):
 def is_quantity(x):
     return x == "B-quantity"
 
+
 def is_goal(x):
     return "goal" in x
+
 
 def is_destination(x):
     return is_person(x) or is_user(x) or is_office(x)
@@ -147,13 +149,13 @@ def add_bring_goals(object, destination, quantity, goals):
         add_bring_goal(object, destination, goals)
 
 
-def add_bring_everyone(object, destination, goals, known_people):
+def add_bring_everyone(object, destination, quantity, goals, known_people):
     destination = Destination()
     destination.type = "user"
     destination.name = "N/A"
-    add_bring_goal(object, destination, goals)
+    add_bring_goals(object, destination, quantity, goals)
     for destination in known_people:
-        add_bring_goal(object, destination, goals)
+        add_bring_goals(object, destination, quantity, goals)
 
 
 def add_goto_goal(destination, goals):
@@ -271,7 +273,10 @@ class NlpNode(Node):
                 else:
                     if is_there_everyone(slots[i:]):
                         # If a B-everyone tag is found, create a bring goal for user and every known person
-                        add_bring_everyone(object, destination, goals, known_people)
+                        quantity = find_quantity(i, words, slots)
+                        if quantity == len(known_people) + 1:
+                            quantity = 1
+                        add_bring_everyone(object, destination, quantity, goals, known_people)
                     else:
                         if known_people:
                             # If there are known people and no destination is found
