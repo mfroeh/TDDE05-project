@@ -313,10 +313,11 @@ void ExploreExecutor::handle_drive_result(rclcpp_action::ClientGoalHandle<Naviga
         generate_frontiers(Map{map});
         drive_to_next_frontier();
         return;
+    // case rclcpp_action::ResultCode::ABORTED:
+    //     RCLCPP_ERROR(node->get_logger(), "Drive: Goal was aborted: %d", static_cast<int>(result.code));
+    //     executionFinished(TstML::Executor::ExecutionStatus::Aborted());
+    //     return;
     case rclcpp_action::ResultCode::ABORTED:
-        RCLCPP_ERROR(node->get_logger(), "Drive: Goal was aborted: %d", static_cast<int>(result.code));
-        executionFinished(TstML::Executor::ExecutionStatus::Aborted());
-        return;
     case rclcpp_action::ResultCode::CANCELED:
     case rclcpp_action::ResultCode::UNKNOWN:
         RCLCPP_ERROR(node->get_logger(), "Drive: Goal was canceled");
