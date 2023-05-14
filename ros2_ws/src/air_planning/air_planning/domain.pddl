@@ -20,17 +20,35 @@
     (personneed ?p - person ?c - content)
     (robothas ?r - robot ?c - content)
     (visited ?r - robot ?l - location)
-    (unvisited ?location)
+    (explored ?l - location)
+    (unexplored ?l - location)
+    (unvisited ?l - location)
+)
+
+(:action explore
+    :parameters (?r - robot ?from - location ?to - location)
+    :precondition (and 
+        (robotat ?r ?from)
+        (unexplored ?to)
+    )
+    :effect (and 
+        (not (robotat ?r ?from))
+        (not (unexplored ?to))
+        (robotat ?r ?to)
+        (explored ?to)
+    )
 )
 
 
 
 (:action getcontent
-    :parameters (?r - robot ?from - location ?v - vending ?c - content)
+    :parameters (?r - robot ?from - location ?v - vending ?c - content ?p - person)
     :precondition (and
         (robotat ?r ?from)
         (vendinghas ?v ?c)
         (robotempty ?r)
+        (personneed ?p ?c)
+
      )
     :effect (and
         (not (robotempty ?r))

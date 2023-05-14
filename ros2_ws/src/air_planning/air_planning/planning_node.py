@@ -98,19 +98,24 @@ class planningNode(Node):
            
             #TODO coordinates get
             if actionName == "explore":
-                pass
+                #pass
+                klass = "person"
+                to = action[3]
+                if "officeof" in to:
+                    to = to.replace("officeof","o")
+                    klass = "office"
 
-                # node ={
-                #         "children": [],
-                #         "common_params": {},
-                #         "name": "explore",
-                #         "params": {
-                #             "kind": "klass", #TODO
-                #             "name": "tag", #TODO
-                #             "policy": "biggest",
-                #             "minsize": 15 
-                #         }
-                #     } 
+                node ={
+                        "children": [],
+                        "common_params": {},
+                        "name": "explore",
+                        "params": {
+                            "kind": klass,
+                            "name": to, #TODO
+                            "policy": "biggest",
+                            "minsize": 15 
+                        }
+                    } 
 
             else:
                 to = action[3]
@@ -271,14 +276,35 @@ class planningNode(Node):
 
         for goal in goals:
             if goal.type == "goto":
-            
-                if goal.destination.type == "person":
-                    goalList.append("(visited r " + goal.destination.name + ")")
-                if goal.destination.type == "office":
-                    goalList.append("(visited r officeOf" + goal.destination.name + ")")
 
-                if goal.destination.type == "user":
-                    goBackToUser = True
+                    explore = True
+                    if goal.destination.name in self.coords.keys():
+                        explore = False
+
+                    if goal.destination.type == "person":
+                        if explore:
+                           goalList.append("(explored " + goal.destination.name + ")") 
+                           initList.append("(unexplored " + goal.destination.name + ")")
+                           objList.append(goal.destination.name + " - person")
+                        else:
+                           goalList.append("(visited r " + goal.destination.name + ")")
+                           initList.append("(" + goal.destination.name +")")
+
+                    
+                    if goal.destination.type == "office":
+                        if explore:
+                            goalList.append("(explored officeof " + goal.destination.name + ")") 
+                            initList.append("(unexplored officeOf" + goal.destination.name + ")")
+                            objList.append("officeof " + goal.destination.name + " - person")
+
+
+                        else:
+                            goalList.append("(visited r officeOf" + goal.destination.name + ")")
+                            initList.append("(unvisited officeOf" + goal.destination.name +")")
+
+                    if goal.destination.type == "user":
+                        goBackToUser = True
+                
 
             
             if goal.type == "bring":

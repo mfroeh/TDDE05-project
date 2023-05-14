@@ -1,2 +1,1 @@
-0 : (getcontent r user vendingmachineid97 coffee)
-1 : (givecontent r vendingmachineid97 annika coffee)
+0 : (explore r user moritz)
