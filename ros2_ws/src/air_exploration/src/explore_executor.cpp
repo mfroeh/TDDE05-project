@@ -346,11 +346,6 @@ bool ExploreExecutor::goal_entity_found()
 {
     using air_interfaces::msg::Entity;
 
-// #define CONTAINER
-#ifdef CONTAINER
-    return false;
-#endif
-
     std::string kind{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "kind").toString().toStdString()};
     std::string name{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "name").toString().toStdString()};
 
@@ -361,7 +356,8 @@ bool ExploreExecutor::goal_entity_found()
 
     auto entries{future.get()->entities};
     return std::any_of(entries.begin(), entries.end(), [kind, name](Entity const &e)
-                       { return e.klass == kind && e.tag == name; });
+                       { return e.klass == kind && std::any_of(e.tags.begin(), e.tags.end(), [name](auto &&tag)
+                                                               { return tag == name; }); });
 }
 
 bool ExploreExecutor::try_transform_to(PointStamped in, PointStamped &out, std::string target, bool log) const
