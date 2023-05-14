@@ -1,1 +1,1 @@
-{"children": [{"children": [], "common_params": {}, "name": "drive-to", "params": {"p": {"rostype": "Point", "x": -2.42, "y": -3.98, "z": 0}}}], "common_params": {}, "name": "seq", "params": {}}
+{"children": [{"children": [], "common_params": {}, "name": "drive-to", "params": {"p": {"rostype": "Point", "x": 3.0, "y": -1.0, "z": 0}}}, {"children": [], "common_params": {}, "name": "drive-to", "params": {"p": {"rostype": "Point", "x": -8.99, "y": -3.38, "z": 0}}}], "common_params": {}, "name": "seq", "params": {}}

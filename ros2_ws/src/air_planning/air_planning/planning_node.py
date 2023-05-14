@@ -16,6 +16,9 @@ from air_interfaces.action import Goals
 from air_interfaces.srv import GetEntities
 from air_interfaces.msg import Entity
 from air_interfaces.srv import ExecuteTst
+import os
+import subprocess
+import re
 
 
 #from math import sqrt
@@ -56,7 +59,9 @@ class planningNode(Node):
    
     def runPlan(self, plan):
      
-        actions = json.loads(plan.answer)
+        #actions = json.loads(plan.answer)
+        actions = plan
+
         tst = {
             "children":[],
             "common_params": {
@@ -67,8 +72,24 @@ class planningNode(Node):
             }
         }
 
-
+        self.get_logger().info("1")
+     #   self.get_logger().info(actions)
         for action in actions:
+            action = action.split("(")[1]
+            action = action.replace("(","")
+            action = action.replace(")","")
+         #   action = str(re.findall(r'((.*?))', action)[0])
+            self.get_logger().info(action)
+            action = action.split()
+
+
+
+
+
+            self.get_logger().info("2")
+            for word in action:            
+	            self.get_logger().info(word)
+	    
             x = 0
             y = 0            
             #set x,y
@@ -95,10 +116,10 @@ class planningNode(Node):
                 to = action[3]
                 
                 if "officeof" in to:
-                    to.replace("officeof","o")
+                    to = to.replace("officeof","o")
 
                 elif "vendingmachine" in to:
-                    to.replace("vendingmachine","")
+                    to = to.replace("vendingmachine","")
             
                 x = self.coords[to][0]
                 y = self.coords[to][1]
@@ -117,14 +138,18 @@ class planningNode(Node):
                         }
                     }
             tst["children"].append(node)
-
+        self.get_logger().info("3")
         with open(self.relPath /'tst.json', 'w') as outfile:
             json.dump(tst, outfile)
         
         self.tst_cli = self.create_client(ExecuteTst,'execute_tst',callback_group=self.group)
         self.tst_req = ExecuteTst.Request()
         self.tst_req.tst = json.dumps(tst)
-        future = self.tst_cli.call_async(self.tst_req)
+        self.future = self.tst_cli.call_async(self.tst_req)
+        rclpy.spin_until_future_complete(self, self.future)
+        self.get_logger().info("4")
+
+
 
 
 
@@ -155,20 +180,25 @@ class planningNode(Node):
     
     #runs planner
     def getPlan(self):
-      self.cli = self.create_client(PlanRequest, 'plan_request')
-      self.req = PlanRequest.Request()
+        self.cli = self.create_client(PlanRequest, 'plan_request')
+        self.req = PlanRequest.Request()
+        self.req.domain = self.myDomain.read() #MERGE OPEN AND READ
+        self.req.problem = self.myProblem.read()
+        self.req.format = "pddl"
+        self.req.extensions = ['patterns']
+        process = subprocess.Popen(['/courses/TDDD48/planners/ipc2011/seq-sat/seq-sat-madagascar/plan', 'domain.pddl', 'problem.pddl','output'])
+        process.wait()
+
+	# This code will not execute until my_program.exe completes
+        print("External program has completed.")
+        
+        f = open("output", "r")
+        #print(f.read())
+        return f.readlines()
      
-
-      self.req.domain = self.myDomain.read() #MERGE OPEN AND READ
-      self.req.problem = self.myProblem.read()
-      self.req.format = "pddl"
-      self.req.extensions = ['patterns']
-
-      self.future = self.cli.call_async(self.req)
-      rclpy.spin_until_future_complete(self, self.future)
-      print("planner response done")
+    #("planner response done")
     #  print(self.future.result())
-      return self.future.result()
+     # return self.future.result()
 
 
  #   def queryDB(self):
@@ -185,7 +215,7 @@ class planningNode(Node):
      # unique = { each['tags'] : each for each in data }.values()
 
      
-      return data
+      #return data
 
     #TODO MAP VENDING + COORDS to tell unique vendings apart
     def makeProblem(self, data, goals):
@@ -236,7 +266,8 @@ class planningNode(Node):
                # vendingIndex = vendingIndex + 1
         #print(initList)
        
-        fileName = "problem" + str(self.problemIndex-1) + ".pddl"
+       # fileName = "problem" + str(self.problemIndex-1) + ".pddl"
+        fileName = "problem.pddl"
 
         for goal in goals:
             if goal.type == "goto":
