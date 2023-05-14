@@ -1,5 +1,5 @@
 string uuid
 string klass
-string tag
+string[] tags
 float64 x
 float64 y

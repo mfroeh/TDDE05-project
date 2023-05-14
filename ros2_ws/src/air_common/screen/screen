@@ -28,8 +28,8 @@ stuff "tdde05-start; start-tdde05; ros2 run air_simple_sim generate_rdf office_1
 
 # Always run
 screen 10
-title "Exploration I"
-stuff "tdde05-start; cd $HOME/TDDE05/ros2_ws/src/air_exploration && ros2 run air_exploration tst_executor\015"
+title "TST Executor"
+stuff "tdde05-start; start-tdde05; cd $HOME/TDDE05/ros2_ws/src/air_exploration && ros2 run air_exploration tst_executor\015"
 
 screen 11
 title "Planner I"
@@ -48,22 +48,18 @@ title "Navigation I"
 stuff "tdde05-start; start-tdde05; ros2 run air_navigation navigation_node\015"
 
 screen 15
-title "Database proxy"
-stuff "tdde05-start; start-tdde05; ros2 run air_database database_proxy\015"
-
-screen 16
 title "Semantic listener"
 stuff "tdde05-start; start-tdde05; ros2 run air_database semantic_listener\015"
 
-screen 17
+screen 16
 title "Semantic visualizer"
 stuff "tdde05-start; start-tdde05; ros2 run air_exploration semantic_visualizer\015"
 
-screen 18
+screen 17
 title "Webserver"
 stuff "cd $HOME/TDDE05/webpages/ && python -m SimpleHTTPServer 7000\015"
 
-screen 19
+screen 18
 title "Rosbridge Server"
 stuff "tdde05-start; start-tdde05; ros2 launch rosbridge_server rosbridge_websocket.launch\015"
 
@@ -80,8 +76,3 @@ stuff "tdde05-start; start-tdde05; rviz2 -d $HOME/TDDE05/ros2_ws/src/air_common/
 screen 22
 title "rqt"
 stuff "tdde05-start; start-tdde05; rqt\015"
-
-screen 23
-title "launch database server"
-stuff "tdde05-start; start-tdde05; ros2 run ros2_kdb server\015"
-#rm -rf $HOME/.lrs_kdb/stores/

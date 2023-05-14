@@ -63,7 +63,7 @@ private:
         humans_marker.header.stamp = now();
         humans_marker.ns = "humans";
         humans_marker.id = 0;
-        humans_marker.type = Marker::CUBE_LIST;
+        humans_marker.type = Marker::SPHERE_LIST;
         humans_marker.action = Marker::ADD;
         humans_marker.scale.x = 0.2;
         humans_marker.scale.y = 0.2;
@@ -94,14 +94,14 @@ private:
         offices_marker.header.frame_id = "map";
         offices_marker.header.stamp = now();
         offices_marker.ns = "offices";
-        offices_marker.id = 1;
+        offices_marker.id = 2;
         offices_marker.type = Marker::CUBE_LIST;
         offices_marker.action = Marker::ADD;
         offices_marker.scale.x = 0.2;
         offices_marker.scale.y = 0.2;
         offices_marker.scale.z = 0.2;
-        offices_marker.color.r = 1.0;
-        offices_marker.color.g = 0.0;
+        offices_marker.color.r = 0.0;
+        offices_marker.color.g = 1.0;
         offices_marker.color.b = 1.0;
         offices_marker.color.a = 1.0;
         offices_marker.points = offices;
