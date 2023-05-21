@@ -183,7 +183,7 @@ void ExploreExecutor::drive_to_next_frontier()
 
 void ExploreExecutor::check_stuck()
 {
-    if (pos_snapshot.header.stamp != pos.header.stamp && euclidean(pos_snapshot.point, pos.point) < 0.025)
+    if (pos_snapshot.header.stamp != pos.header.stamp && euclidean(pos_snapshot.point, pos.point) < 0.05)
     {
         RCLCPP_INFO(node->get_logger(), "Drive: Robot is stuck, cancelling...");
         navigate_client->async_cancel_goal(goal_handle);
@@ -212,7 +212,7 @@ void ExploreExecutor::handle_odom(Odometry::SharedPtr const msg)
     if (try_transform_to(in, out, "map", false))
     {
         pos = out;
-        RCLCPP_INFO(node->get_logger(), "Updated position");
+        // RCLCPP_INFO(node->get_logger(), "Updated position");
     }
 }
 
@@ -226,30 +226,30 @@ void ExploreExecutor::visualize_frontier(std::deque<Frontier> frontiers)
     std::transform(frontiers.begin(), frontiers.end(), std::back_inserter(frontier_centroids), [](Frontier const &f)
                    { return f.centroid; });
 
-    Frontier all_points{std::accumulate(frontiers.begin(),
-                                        frontiers.end(), Frontier{std::vector<unsigned>{}, Map{map}},
-                                        [](Frontier &a, Frontier &b)
-                                        {
-                                            a.points.insert(a.points.end(), b.points.begin(), b.points.end());
-                                            return a;
-                                        })};
+    // Frontier all_points{std::accumulate(frontiers.begin(),
+    //                                     frontiers.end(), Frontier{std::vector<unsigned>{}, Map{map}},
+    //                                     [](Frontier &a, Frontier &b)
+    //                                     {
+    //                                         a.points.insert(a.points.end(), b.points.begin(), b.points.end());
+    //                                         return a;
+    //                                     })};
 
-    // Create marker for frontier points
-    Marker points_marker{};
-    points_marker.header.frame_id = "map";
-    points_marker.header.stamp = node->now();
-    points_marker.ns = "frontier_points";
-    points_marker.id = 0;
-    points_marker.type = Marker::SPHERE_LIST;
-    points_marker.action = Marker::ADD;
-    points_marker.scale.x = 0.2;
-    points_marker.scale.y = 0.2;
-    points_marker.scale.z = 0.2;
-    points_marker.color.r = 1.0;
-    points_marker.color.g = 0.65;
-    points_marker.color.b = 0.0;
-    points_marker.color.a = 1.0;
-    points_marker.points = all_points.points;
+    // // Create marker for frontier points
+    // Marker points_marker{};
+    // points_marker.header.frame_id = "map";
+    // points_marker.header.stamp = node->now();
+    // points_marker.ns = "frontier_points";
+    // points_marker.id = 0;
+    // points_marker.type = Marker::SPHERE_LIST;
+    // points_marker.action = Marker::ADD;
+    // points_marker.scale.x = 0.2;
+    // points_marker.scale.y = 0.2;
+    // points_marker.scale.z = 0.2;
+    // points_marker.color.r = 1.0;
+    // points_marker.color.g = 0.65;
+    // points_marker.color.b = 0.0;
+    // points_marker.color.a = 1.0;
+    // points_marker.points = all_points.points;
 
     // Create marker for frontier centroids
     Marker centroids_marker{};
@@ -271,7 +271,7 @@ void ExploreExecutor::visualize_frontier(std::deque<Frontier> frontiers)
     // Create MarkerArray message and add markers
     MarkerArray marker_array{};
     marker_array.markers.push_back(centroids_marker);
-    marker_array.markers.push_back(points_marker);
+    // marker_array.markers.push_back(points_marker);
     visualization_pub->publish(marker_array);
 }
 

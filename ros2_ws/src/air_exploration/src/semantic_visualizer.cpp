@@ -31,7 +31,7 @@ public:
     SemanticVisualizer() : Node{SEMANTIC_VISUALIZER_NODE_NAME}
     {
         publisher = create_publisher<MarkerArray>(SEMANTIC_VISUALIZER_PUBLISH_TOPIC, 10);
-        timer = create_wall_timer(500ms, std::bind(&SemanticVisualizer::query_and_visualize, this));
+        timer = create_wall_timer(2s, std::bind(&SemanticVisualizer::query_and_visualize, this));
         client = create_client<GetEntities>("get_entities");
     }
 

@@ -41,7 +41,7 @@ second_t< typename tMap::value_type > second( const tMap& ) { return second_t< t
 class SemanticListener : public rclcpp::Node {
 public:
   SemanticListener() : Node("semantic_listener") {
-    std::string topic{"/semantic_sensor"};
+    std::string topic{"/semantic_sensor_hf"};
     subscription = this->create_subscription<SemanticObservation>(
         topic, 10, std::bind(&SemanticListener::semantic_callback, this, _1));
     tf_buffer = std::make_unique<tf2_ros::Buffer>(this->get_clock());
@@ -62,11 +62,11 @@ private:
     }
     RCLCPP_INFO(this->get_logger(), "Received observation");
     PointStamped transformed_point{};
-    transformed_point = msg.point;
-    transformed_point.header.stamp = now() - rclcpp::Duration::from_seconds(0.1);
+    // transformed_point = msg.point;
+    // transformed_point.header.stamp = now();
 
     try {
-      transformed_point = tf_buffer->transform(transformed_point, "map");
+      transformed_point = tf_buffer->transform(msg.point, "map");
     } catch (const tf2::TransformException& ex) {
       RCLCPP_INFO(this->get_logger(), "Could not transform %s to %s: %s",
                   msg.point.header.frame_id.c_str(), "map", ex.what());
