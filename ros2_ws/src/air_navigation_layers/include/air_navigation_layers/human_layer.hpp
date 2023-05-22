@@ -1,6 +1,7 @@
 #pragma once
 
 #include <list>
+#include <vector>
 #include <memory>
 #include <cmath>
 
@@ -11,11 +12,18 @@
 #include "nav2_costmap_2d/layered_costmap.hpp"
 #include "nav2_costmap_2d/obstacle_layer.hpp"
 
+#include "nav_msgs/msg/path.hpp"
+
 #include "air_interfaces/msg/people.hpp"
 #include "air_interfaces/msg/person.hpp"
 
+#include "geometry_msgs/msg/pose.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
+
 using air_interfaces::msg::Person;
 using air_interfaces::msg::People;
+using geometry_msgs::msg::Pose;
+using nav_msgs::msg::Path;
 
 
 
@@ -58,12 +66,11 @@ public:
   /// @return True if there is a wall, false otherwise
   virtual bool isBlocked(const nav2_costmap_2d::Costmap2D &master_grid, int mx, int my, int rx, int ry);
 
-  //TODO: Build a funciton using Bresenham's line algorithm
-  /// @brief Get all the cell between human and robotic as a line
-
-  /// @param hx The x of human in map frame
-  /// @param hy The y of human in map frame
-  /// @return an Array with all cell ?
+  //TODO: Build a funciton to check if human will see robot soon
+  /// @brief check if human will see robot soon according to the plan
+  /// @param master_grid The const reference of costmap 
+  /// @param plan The const reference of plan
+  /// @return Ture if human can see robot soon, false other wise
 
 protected:
   double last_min_x_, last_min_y_, last_max_x_, last_max_y_;
@@ -71,10 +78,14 @@ protected:
   bool first_time_,first_time_costmap_;
   boost::recursive_mutex lock_;
   void peopleCallback(const People::SharedPtr people);
+  void planCallback(const Path::SharedPtr path);
   rclcpp::Subscription<People>::SharedPtr people_sub_; 
+  rclcpp::Subscription<Path>::SharedPtr path_sub_; 
   People people_list_;
+  Path path_list_;
   std::list<Person> transformed_people_;
   nav2_costmap_2d::Costmap2D init_map;
+  std::vector<Pose> future_path_;
 };
 
 }  // namespace air_navigation_layers

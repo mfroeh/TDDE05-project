@@ -20,6 +20,9 @@ from std_msgs.msg import String,Header
 from air_interfaces.msg import People,Person
 from air_simple_sim_msgs.msg import SemanticObservation
 
+from nav_msgs.msg import Path
+from geometry_msgs.msg import PoseStamped
+
 
 class NavigationNode(Node):
 
@@ -41,7 +44,6 @@ class NavigationNode(Node):
             10)
 
         self.previous_costmap_data = None
-
 
     def listener_callback(self, msg):#2500 local 50*50
             #if msg.uuid != self.oldMsg:
@@ -67,6 +69,10 @@ class NavigationNode(Node):
                         if abs(msgPerson.position.x-person.position.x)>0.1 or abs(msgPerson.position.y-person.position.y)>0.1 or abs(msgPerson.position.z-person.position.z)>0.1:
                             print('UPDATING!')
                             #update people info
+                            person.velocity.x=msgPerson.position.x-person.position.x
+                            person.velocity.y=msgPerson.position.y-person.position.y
+                            person.velocity.z=msgPerson.position.z-person.position.z
+                            #TODO velocity part should be test and optimal
                             person.position.x=msgPerson.position.x
                             person.position.y=msgPerson.position.y
                             person.position.z=msgPerson.position.z
@@ -77,7 +83,7 @@ class NavigationNode(Node):
 
         self.msgPeople.header.stamp = msg.point.header.stamp #self.get_clock().now().to_msg()
         self.people_publisher.publish(self.msgPeople)
-        print(self.msgPeople)
+        #print(self.msgPeople)
         return 
     
         # Checking print:
