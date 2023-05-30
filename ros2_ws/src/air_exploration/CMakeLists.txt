@@ -44,6 +44,8 @@ find_package(TstML REQUIRED) # TST executors
 find_package(std_srvs REQUIRED) # TST executors
 find_package(irobot_create_msgs REQUIRED) # Undock executor
 
+find_package(OpenMP REQUIRED)
+
 # position_service
 add_executable(position_service src/position_service.cpp)
 target_include_directories(position_service PUBLIC
@@ -81,7 +83,7 @@ ament_target_dependencies(
   "std_srvs"
   "irobot_create_msgs"
 )
-target_link_libraries(tst_executor nlohmann_json TstMLExecutor)
+target_link_libraries(tst_executor nlohmann_json TstMLExecutor OpenMP::OpenMP_CXX)
 
 # semantic visualizer
 add_executable(semantic_visualizer src/semantic_visualizer)
