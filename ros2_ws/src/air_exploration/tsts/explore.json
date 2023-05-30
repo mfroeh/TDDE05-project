@@ -10,7 +10,7 @@
       "params": {
         "kind": "office",
         "name": "George",
-        "policy": "biggest",
+        "policy": "nearest",
         "minsize": 15
       }
     },

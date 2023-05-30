@@ -66,7 +66,7 @@ stuff "tdde05-start; start-tdde05; ros2 launch rosbridge_server rosbridge_websoc
 # Not related to what we built
 screen 20
 title "Simulator"
-stuff "tdde05-start; start-tdde05; ros2 launch air_bringup turtle.launch.py world:=office_1 rviz:=true slam:=off nav2_params_file:=$HOME/TDDE05/ros2_ws/src/air_navigation_layers/nav2.yaml\015"
+stuff "tdde05-start; start-tdde05; ros2 launch air_bringup turtle.launch.py world:=office_1 slam:=off nav2_params_file:=$HOME/TDDE05/ros2_ws/src/air_navigation_layers/nav2.yaml\015"
 
 screen 21
 title "rviz"
@@ -78,4 +78,4 @@ stuff "tdde05-start; start-tdde05; rqt\015"
 
 screen 23
 title "SLAM toolbox"
-stuff "tdde05-start; start-tdde05; ros2 run slam_toolbox async_slam_toolbox_node --ros-args --params-file /courses/TDDE05/software/ros2_ws/src/air_bringup/config/slam_async.yaml -p use_sim_time:=true"
+stuff "tdde05-start; start-tdde05; ros2 run slam_toolbox async_slam_toolbox_node --ros-args --params-file $HOME/TDDE05/ros2_ws/src/air_exploration/slam_async.yaml -p use_sim_time:=true"
