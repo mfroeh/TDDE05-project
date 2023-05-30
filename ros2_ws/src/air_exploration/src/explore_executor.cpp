@@ -122,7 +122,11 @@ void ExploreExecutor::generate_frontiers(Map map)
     RCLCPP_INFO(node->get_logger(), "Generating new frontiers with parameters: kind=%s, name=%s, policy=%s, minsize=%u", kind.c_str(), name.c_str(), policy.c_str(), minsize);
 
     RCLCPP_INFO(node->get_logger(), "Launching WFD");
-    auto new_frontiers{WFD(Map{map}, minsize)};
+    auto new_frontiers1{WFD(Map{map}, minsize)};
+    RCLCPP_INFO_STREAM(node->get_logger(), "Found " << new_frontiers1.size() << " frontiers!");
+
+    RCLCPP_INFO(node->get_logger(), "Launching parallel frontier search");
+    auto new_frontiers{parallel_search(Map{map}, minsize)};
     RCLCPP_INFO_STREAM(node->get_logger(), "Found " << new_frontiers.size() << " frontiers!");
 
     // Ascending by distance to robot
