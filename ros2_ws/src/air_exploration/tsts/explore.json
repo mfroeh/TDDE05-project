@@ -11,6 +11,7 @@
         "kind": "office",
         "name": "George",
         "policy": "nearest",
+        "heuristic": true,
         "minsize": 15
       }
     },

@@ -7,9 +7,20 @@
     { "key": "kind", "type": "string", "desc": "human|vendingmachine|office" },
     { "key": "name", "type": "string", "desc": "The name of the thing" },
     { "key": "policy", "type": "string", "desc": "nearest|biggest" },
-    { "key": "minsize", "type": "int32", "desc": "Minimum size of frontiers" }
+    { "key": "minsize", "type": "int32", "desc": "Minimum size of frontiers" },
+    {
+      "key": "heuristic",
+      "type": "bool",
+      "desc": "Wether to use euclidean distance or nav2 planner distance"
+    }
   ],
   "node-type": "terminal",
-  "required-params-for-execution": ["kind", "name", "minsize"],
+  "required-params-for-execution": [
+    "kind",
+    "name",
+    "minsize",
+    "policy",
+    "heuristic"
+  ],
   "node-resources": []
 }

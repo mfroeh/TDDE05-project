@@ -67,6 +67,9 @@ struct Frontier
     Point centroid{};
     size_t size;
 
+    // Only used if heuristic == false
+    double planner_distance;
+
 private:
     std::vector<unsigned> indices;
 };

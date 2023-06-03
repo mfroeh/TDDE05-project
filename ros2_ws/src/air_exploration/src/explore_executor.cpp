@@ -4,6 +4,9 @@
 #include <string>
 #include <algorithm>
 #include <future>
+#include <condition_variable>
+#include <mutex>
+#include <numeric>
 
 #include "air_interfaces/msg/entity.hpp"
 
@@ -17,6 +20,7 @@ using nav_msgs::msg::OccupancyGrid;
 using nav_msgs::msg::Odometry;
 
 using air_interfaces::srv::GetEntities;
+using nav2_msgs::action::ComputePathToPose;
 using nav2_msgs::action::NavigateToPose;
 
 using visualization_msgs::msg::MarkerArray;
@@ -26,6 +30,7 @@ using Self = ExploreExecutor;
 char const *EXPLORE_EXECUTOR_NODE_NAME = "explore_node";
 char const *GET_ENTRIES_SERVICE_TOPIC = "get_entities";
 char const *FRONTIER_VISUALIZATION_TOPIC = "frontier_visualization";
+char const *BENCHMARK_FILE_NAME = "bench.txt";
 
 static double euclidean(Point a, Point b)
 {
@@ -51,6 +56,10 @@ ExploreExecutor::ExploreExecutor(TstML::TSTNode const *tst_node, TstML::Executor
     callback_group = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     navigate_client = rclcpp_action::create_client<NavigateToPose>(node, "navigate_to_pose", callback_group);
 
+    // Path cost client
+    // path_cb_group = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    path_client = rclcpp_action::create_client<ComputePathToPose>(node, "compute_path_to_pose");
+
     // Transformations
     tf_buffer = std::make_unique<tf2_ros::Buffer>(node->get_clock());
     tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
@@ -64,6 +73,7 @@ ExploreExecutor::ExploreExecutor(TstML::TSTNode const *tst_node, TstML::Executor
     // Make sure all services are available
     assert(entities_client->wait_for_service(2s));
     assert(navigate_client->wait_for_action_server(2s));
+    assert(path_client->wait_for_action_server(2s));
 }
 
 ExploreExecutor::~ExploreExecutor()
@@ -84,6 +94,8 @@ TstML::Executor::ExecutionStatus ExploreExecutor::start()
         return TstML::Executor::ExecutionStatus::Finished();
     }
 
+    bench = std::ofstream{BENCHMARK_FILE_NAME};
+    bench << "T,Size,Discovered" << std::endl;
     generate_frontiers(Map{map});
     drive_to_next_frontier();
     return TstML::Executor::ExecutionStatus::Started();
@@ -118,20 +130,71 @@ void ExploreExecutor::generate_frontiers(Map map)
     std::string name{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "name").toString().toStdString()};
     std::string policy{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "policy").toString().toStdString()};
     unsigned minsize{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "minsize").toUInt()};
+    bool heuristic{TstML::Executor::AbstractNodeExecutor::node()->getParameter(TstML::TSTNode::ParameterType::Specific, "heuristic").toBool()};
 
-    RCLCPP_INFO(node->get_logger(), "Generating new frontiers with parameters: kind=%s, name=%s, policy=%s, minsize=%u", kind.c_str(), name.c_str(), policy.c_str(), minsize);
+    RCLCPP_INFO(node->get_logger(), "Generating new frontiers with parameters: kind=%s, name=%s, policy=%s, minsize=%u, heuristic:%d", kind.c_str(), name.c_str(), policy.c_str(), minsize, heuristic);
 
     RCLCPP_INFO(node->get_logger(), "Launching WFD");
-    auto new_frontiers1{WFD(Map{map}, minsize)};
-    RCLCPP_INFO_STREAM(node->get_logger(), "Found " << new_frontiers1.size() << " frontiers!");
-
-    RCLCPP_INFO(node->get_logger(), "Launching parallel frontier search");
-    auto new_frontiers{parallel_search(Map{map}, minsize)};
+    auto new_frontiers{WFD(Map{map}, minsize)};
     RCLCPP_INFO_STREAM(node->get_logger(), "Found " << new_frontiers.size() << " frontiers!");
 
+    auto undiscovered{std::count(map.get_data().begin(), map.get_data().end(), -1)};
+    double rate{(map.size - undiscovered) / static_cast<double>(map.size)};
+    RCLCPP_INFO(node->get_logger(), "Discovered %.2f%% (%lu/%lu) of map", rate * 100, map.size - undiscovered, map.size);
+
+    bench << node->now().nanoseconds() << "," << new_frontiers.size() << "," << rate << std::endl;
+    bench.flush();
+
+    if (rate > 0.995)
+    {
+        frontiers = {};
+        return;
+    }
+
+    if (!heuristic)
+    {
+        using geometry_msgs::msg::PoseStamped;
+
+        // Enforce sequential computation using mutex, otherwise often got result code 6 (aborted)
+        std::mutex m{};
+        std::condition_variable cv{};
+        for (auto &f : new_frontiers)
+        {
+            m.lock();
+            ComputePathToPose::Goal msg{};
+            msg.goal.pose.position = f.centroid;
+            msg.goal.header.frame_id = "map";
+            msg.use_start = false;
+            msg.planner_id = "GridBased"; // A grid-based planner that plans paths on a grid map, such as the Dijkstra's algorithm or A* algorithm
+            rclcpp_action::Client<ComputePathToPose>::SendGoalOptions send_goal_options{};
+            send_goal_options.result_callback = [&](rclcpp_action::ClientGoalHandle<ComputePathToPose>::WrappedResult const &res)
+            {
+                auto result{res.result};
+                RCLCPP_INFO(node->get_logger(), "%d", res.code);
+
+                std::vector<PoseStamped> path{result->path.poses};
+                PoseStamped pose{};
+                pose.pose.position = pos.point;
+                path.insert(path.begin(), pose);
+
+                std::vector<double> distances{};
+                for (size_t i{1}; i < path.size(); ++i)
+                    distances.push_back(euclidean(path[i - 1].pose.position, path[i].pose.position));
+
+                f.planner_distance = std::accumulate(distances.begin(), distances.end(), 0.0, std::plus<double>());
+                if (f.planner_distance == 0)
+                    f.planner_distance = 10000;
+                RCLCPP_INFO(node->get_logger(), "size: %lu, Distance: %.2f", distances.size(), f.planner_distance);
+                m.unlock();
+            };
+            path_client->async_send_goal(msg, send_goal_options);
+        }
+        m.lock();
+    }
+
     // Ascending by distance to robot
-    auto nearest{[this](Frontier const &a, Frontier const &b)
-                 { return euclidean(a.centroid, pos.point) < euclidean(b.centroid, pos.point); }};
+    auto nearest{[this, &heuristic](Frontier const &a, Frontier const &b)
+                 { return heuristic ? euclidean(a.centroid, pos.point) < euclidean(b.centroid, pos.point) : a.planner_distance < b.planner_distance; }};
 
     // Descending by size
     auto biggest{[this](Frontier const &a, Frontier const &b)
@@ -145,10 +208,6 @@ void ExploreExecutor::generate_frontiers(Map map)
         std::sort(new_frontiers.begin(), new_frontiers.end(), nearest);
 
     frontiers = {new_frontiers.begin(), new_frontiers.end()};
-
-    auto undiscovered{std::count(map.get_data().begin(), map.get_data().end(), -1)};
-    double rate{(map.size - undiscovered) / static_cast<double>(map.size)};
-    RCLCPP_INFO(node->get_logger(), "Discovered %.2f%% (%lu/%lu) of map", rate * 100, map.size - undiscovered, map.size);
 }
 
 void ExploreExecutor::drive_to_next_frontier()
@@ -310,6 +369,10 @@ void ExploreExecutor::handle_drive_result(rclcpp_action::ClientGoalHandle<Naviga
         if (goal_entity_found())
         {
             RCLCPP_INFO(node->get_logger(), "Drive: We found the guy. Finishing...");
+            bench << node->now().nanoseconds() << ",0,1" << std::endl;
+            bench.flush();
+            bench.close();
+
             executionFinished(TstML::Executor::ExecutionStatus::Finished());
             return;
         }
@@ -332,7 +395,7 @@ void ExploreExecutor::handle_drive_result(rclcpp_action::ClientGoalHandle<Naviga
             return;
         }
 
-        if (euclidean(pos.point, current->centroid) < 0.25)
+        if (euclidean(pos.point, current->centroid) < 0.4)
         {
             RCLCPP_INFO(node->get_logger(), "Drive: Goal was canceled, but we are close enough to the goal. Creating new frontiers...");
             generate_frontiers(Map{map});
