@@ -13,55 +13,18 @@ bind q quit
 bindkey ^l windowlist
 bindkey ^e copy
 
-# Interactive
-screen 0
-title "NLP II"
-stuff "tdde05-start; start-tdde05; ros2 topic pub /input_prompt std_msgs/msg/String \"data: Go to Erik's office\" --once"
-
 screen 1
 title "Exploration II"
 stuff "tdde05-start; start-tdde05; ros2 service call /execute_tst air_interfaces/srv/ExecuteTst '{tst_file: \"$HOME/TDDE05/ros2_ws/src/air_exploration/tsts/explore.json\"}'"
-
-screen 2
-title "Insert objects into database"
-stuff "tdde05-start; start-tdde05; ros2 run air_simple_sim generate_rdf office_1; ros2 service call /kdb_server/insert_triples  ros2_kdb_msgs/srv/InsertTriples \"\ngraphname: 'semanticobject'\nformat: 'ttl'\ncontent: '`ros2 run air_simple_sim generate_rdf office_1`'\""
 
 # Always run
 screen 10
 title "TST Executor"
 stuff "tdde05-start; start-tdde05; cd $HOME/TDDE05/ros2_ws/src/air_exploration && ros2 run air_exploration tst_executor\015"
 
-screen 11
-title "Planner I"
-stuff "tdde05-start; start-tdde05; ros2 run ros_hypertension planner_server\015"
-
-screen 12
-title "Planner II"
-stuff "tdde05-start; start-tdde05; cd $HOME/TDDE05/ros2_ws/src/air_planning/air_planning && ros2 run air_planning planning_node\015"
-
-screen 13
-title "NLP I"
-stuff "tdde05-start; start-tdde05; cd $HOME/TDDE05/ros2_ws/src/air_nlp/air_nlp && ros2 run air_nlp nlp_node\015"
-
-screen 14
-title "Navigation I"
-stuff "tdde05-start; start-tdde05; ros2 run air_navigation navigation_node\015"
-
 screen 15
 title "Semantic listener"
 stuff "tdde05-start; start-tdde05; ros2 run air_database semantic_listener\015"
-
-screen 16
-title "Semantic visualizer"
-stuff "tdde05-start; start-tdde05; ros2 run air_exploration semantic_visualizer\015"
-
-screen 17
-title "Webserver"
-stuff "cd $HOME/TDDE05/webpages/ && python -m SimpleHTTPServer 7000\015"
-
-screen 18
-title "Rosbridge Server"
-stuff "tdde05-start; start-tdde05; ros2 launch rosbridge_server rosbridge_websocket.launch\015"
 
 # Not related to what we built
 screen 20
@@ -71,10 +34,6 @@ stuff "tdde05-start; start-tdde05; ros2 launch air_bringup turtle.launch.py worl
 screen 21
 title "rviz"
 stuff "tdde05-start; start-tdde05; rviz2 -d $HOME/TDDE05/ros2_ws/src/air_common/rviz/config.rviz\015"
-
-screen 22
-title "rqt"
-stuff "tdde05-start; start-tdde05; rqt\015"
 
 screen 23
 title "SLAM toolbox"

@@ -30,7 +30,7 @@ using Self = ExploreExecutor;
 char const *EXPLORE_EXECUTOR_NODE_NAME = "explore_node";
 char const *GET_ENTRIES_SERVICE_TOPIC = "get_entities";
 char const *FRONTIER_VISUALIZATION_TOPIC = "frontier_visualization";
-char const *BENCHMARK_FILE_NAME = "bench.txt";
+char const *BENCHMARK_FILE_NAME = "bench";
 
 static double euclidean(Point a, Point b)
 {
@@ -94,7 +94,7 @@ TstML::Executor::ExecutionStatus ExploreExecutor::start()
         return TstML::Executor::ExecutionStatus::Finished();
     }
 
-    bench = std::ofstream{BENCHMARK_FILE_NAME};
+    bench = std::ofstream{BENCHMARK_FILE_NAME + std::to_string(node->now().nanoseconds()) + ".csv"};
     bench << "T,Size,Discovered" << std::endl;
     generate_frontiers(Map{map});
     drive_to_next_frontier();
@@ -151,46 +151,47 @@ void ExploreExecutor::generate_frontiers(Map map)
         return;
     }
 
-    if (!heuristic)
+    using geometry_msgs::msg::PoseStamped;
+
+    // Enforce sequential computation using mutex, otherwise often got result code 6 (aborted)
+    std::mutex m{};
+    std::condition_variable cv{};
+    for (auto &f : new_frontiers)
     {
-        using geometry_msgs::msg::PoseStamped;
-
-        // Enforce sequential computation using mutex, otherwise often got result code 6 (aborted)
-        std::mutex m{};
-        std::condition_variable cv{};
-        for (auto &f : new_frontiers)
-        {
-            m.lock();
-            ComputePathToPose::Goal msg{};
-            msg.goal.pose.position = f.centroid;
-            msg.goal.header.frame_id = "map";
-            msg.use_start = false;
-            msg.planner_id = "GridBased"; // A grid-based planner that plans paths on a grid map, such as the Dijkstra's algorithm or A* algorithm
-            rclcpp_action::Client<ComputePathToPose>::SendGoalOptions send_goal_options{};
-            send_goal_options.result_callback = [&](rclcpp_action::ClientGoalHandle<ComputePathToPose>::WrappedResult const &res)
-            {
-                auto result{res.result};
-                RCLCPP_INFO(node->get_logger(), "%d", res.code);
-
-                std::vector<PoseStamped> path{result->path.poses};
-                PoseStamped pose{};
-                pose.pose.position = pos.point;
-                path.insert(path.begin(), pose);
-
-                std::vector<double> distances{};
-                for (size_t i{1}; i < path.size(); ++i)
-                    distances.push_back(euclidean(path[i - 1].pose.position, path[i].pose.position));
-
-                f.planner_distance = std::accumulate(distances.begin(), distances.end(), 0.0, std::plus<double>());
-                if (f.planner_distance == 0)
-                    f.planner_distance = 10000;
-                RCLCPP_INFO(node->get_logger(), "size: %lu, Distance: %.2f", distances.size(), f.planner_distance);
-                m.unlock();
-            };
-            path_client->async_send_goal(msg, send_goal_options);
-        }
         m.lock();
+        ComputePathToPose::Goal msg{};
+        msg.goal.pose.position = f.centroid;
+        msg.goal.header.frame_id = "map";
+        msg.start.pose.position = pos.point;
+        msg.start.header.frame_id = "map";
+        msg.use_start = true;
+        msg.planner_id = "GridBased"; // A grid-based planner that plans paths on a grid map, such as the Dijkstra's algorithm or A* algorithm
+        rclcpp_action::Client<ComputePathToPose>::SendGoalOptions send_goal_options{};
+        send_goal_options.result_callback = [&](rclcpp_action::ClientGoalHandle<ComputePathToPose>::WrappedResult const &res)
+        {
+            auto result{res.result};
+            RCLCPP_INFO(node->get_logger(), "%d", res.code);
+
+            std::vector<PoseStamped> path{result->path.poses};
+            PoseStamped pose{};
+            pose.pose.position = pos.point;
+            path.insert(path.begin(), pose);
+
+            std::vector<double> distances{};
+            for (size_t i{1}; i < path.size(); ++i)
+                distances.push_back(euclidean(path[i - 1].pose.position, path[i].pose.position));
+
+            f.planner_distance = std::accumulate(distances.begin(), distances.end(), 0.0, std::plus<double>());
+            RCLCPP_INFO(node->get_logger(), "size: %lu, Distance: %.2f", distances.size(), f.planner_distance);
+            m.unlock();
+        };
+        path_client->async_send_goal(msg, send_goal_options);
     }
+    m.lock();
+
+    new_frontiers.erase(std::remove_if(new_frontiers.begin(), new_frontiers.end(), [](Frontier const &f)
+                                       { return f.planner_distance == 0; }),
+                        new_frontiers.end());
 
     // Ascending by distance to robot
     auto nearest{[this, &heuristic](Frontier const &a, Frontier const &b)
@@ -369,10 +370,6 @@ void ExploreExecutor::handle_drive_result(rclcpp_action::ClientGoalHandle<Naviga
         if (goal_entity_found())
         {
             RCLCPP_INFO(node->get_logger(), "Drive: We found the guy. Finishing...");
-            bench << node->now().nanoseconds() << ",0,1" << std::endl;
-            bench.flush();
-            bench.close();
-
             executionFinished(TstML::Executor::ExecutionStatus::Finished());
             return;
         }
