@@ -305,18 +305,25 @@ void HumanLayer::updateCosts(
 
     double buffer_size = 5.0; // Buffer size in meters
     double inner_radius = 0.0; // Inner radius in meters
-    double outer_radius = 3.0; // Outer radius in meters
+    double outer_radius = 1.5; // Outer radius in meters
     double resolution = master_grid.getResolution();
 
     int buffer_cells = static_cast<int>(buffer_size / resolution);
-    int outer_buffer_cells = static_cast<int>(outer_radius / resolution);
+    //int outer_buffer_cells = static_cast<int>(outer_radius / resolution);
 
     double amplitude = nav2_costmap_2d::LETHAL_OBSTACLE-1; // Maximum cost value
     double sigma = 0.5; // Gaussian function spread
 
     for(auto const& guy : transformed_people_)
     {
-
+        if(guy.velocity.x+guy.velocity.y+guy.velocity.z)//has velocity
+        {
+            outer_radius = 1.5;
+        }else
+        {
+            outer_radius = 3.0;
+        }
+        int outer_buffer_cells = static_cast<int>(outer_radius / resolution);
         double lx{guy.position.x}, ly{guy.position.y};
         unsigned int person_mx, person_my;
         if (!master_grid.worldToMap(lx, ly, person_mx, person_my)) {  // GLOBAL_COSTMAP
@@ -325,7 +332,6 @@ void HumanLayer::updateCosts(
         }
         bool has_obstacle = isBlocked(master_grid, person_mx, person_my, robot_mx, robot_my);
         if(!has_obstacle){
-        
         for (int dx = -outer_buffer_cells; dx <= outer_buffer_cells; ++dx) {
             for (int dy = -outer_buffer_cells; dy <= outer_buffer_cells; ++dy) {
                 unsigned int cell_x = person_mx + dx;
