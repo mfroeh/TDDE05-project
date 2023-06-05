@@ -310,7 +310,7 @@ class NlpNode(Node):
                 last_goal = goals[-1]
                 if last_goal.type != "bring":
                     raise Exception("I could not understand composite goals")
-                destination = find_destination(i, words, slots)
+                destination = find_destination(i, words, slots, True)
                 if destination is None:
                     destination = last_goal.destination
                 add_bring_goal(create_object(word), destination, goals)
