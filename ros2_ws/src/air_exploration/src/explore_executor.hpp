@@ -46,12 +46,13 @@ public:
 private:
     std::deque<Frontier> frontiers{};
     std::unique_ptr<Frontier> current{};
+    std::vector<Frontier> visited{};
 
     std::shared_ptr<rclcpp::Node> node{};
     rclcpp::executors::MultiThreadedExecutor executor{};
     std::thread executor_thread{};
 
-    rclcpp::Subscription<OccupancyGrid>::SharedPtr map_sub{};
+    rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub{};
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub{};
     nav_msgs::msg::OccupancyGrid::SharedPtr map{};
     geometry_msgs::msg::PointStamped pos{};

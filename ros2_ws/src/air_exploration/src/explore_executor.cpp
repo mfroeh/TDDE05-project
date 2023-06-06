@@ -209,6 +209,12 @@ void ExploreExecutor::generate_frontiers(Map map)
         std::sort(new_frontiers.begin(), new_frontiers.end(), nearest);
 
     frontiers = {new_frontiers.begin(), new_frontiers.end()};
+
+    // Remove visited frontiers
+    // frontiers.erase(std::remove_if(frontiers.begin(), frontiers.end(), [this](Frontier const &f)
+    //                                { return std::any_of(visited.begin(), visited.end(), [f](Frontier const &v)
+    //                                                     { return euclidean(v.centroid, f.centroid) < 0.1; }); }),
+    //                 frontiers.end());
 }
 
 void ExploreExecutor::drive_to_next_frontier()
@@ -226,6 +232,7 @@ void ExploreExecutor::drive_to_next_frontier()
 
     Frontier f{frontiers.front()};
     frontiers.pop_front();
+    visited.push_back(f);
     Point p{f.centroid};
 
     current = std::make_unique<Frontier>(f);

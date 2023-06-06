@@ -47,8 +47,7 @@ bool is_frontier(unsigned p, Map const &map)
 
 std::vector<Frontier> WFD(Map const &map, unsigned minsize)
 {
-    enum State : int8_t
-    {
+    enum State : int8_t {
         NONE = 0,
         MAP_OPEN_LIST,       // Points that have been enqueued by the outer BFS
         MAP_CLOSE_LIST,      // Points that have been dequeued by the outer BFS

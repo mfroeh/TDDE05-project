@@ -1,0 +1,14 @@
+{
+  "type": "tst node",
+  "key": "explore_lab",
+  "status": "released",
+  "desc": "",
+  "params": [
+    { "key": "b", "type": "float64", "desc": "" },
+    { "key": "a", "type": "float64", "desc": "" },
+    { "key": "radius", "type": "float64", "desc": "" }
+  ],
+  "node-type": "terminal",
+  "required-params-for-execution": ["radius", "a", "b"],
+  "node-resources": []
+}

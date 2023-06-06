@@ -1,0 +1,17 @@
+{
+  "common_params": {},
+  "name": "seq",
+  "params": {},
+  "children": [
+    {
+      "children": [],
+      "common_params": {},
+      "name": "explore_lab",
+      "params": {
+        "radius": 100.0,
+        "a": 0.5,
+        "b": 1.5
+      }
+    }
+  ]
+}
