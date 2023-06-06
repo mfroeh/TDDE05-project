@@ -67,6 +67,9 @@ struct Frontier
     Point centroid{};
     size_t size;
 
+    // Only used if heuristic == false
+    double planner_distance;
+
 private:
     std::vector<unsigned> indices;
 };
@@ -76,3 +79,5 @@ private:
 /// @param minsize The minimum size of a frontier to be considered
 /// @return A vector of frontiers
 std::vector<Frontier> WFD(Map const &map, unsigned minsize = 10);
+
+std::vector<Frontier> parallel_search(Map const &map, unsigned minsize = 10);

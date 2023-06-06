@@ -2,6 +2,8 @@
 
 #include <queue>
 #include <algorithm>
+#include <omp.h>
+#include <map>
 
 // http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/OccupancyGrid.html
 #define THRESHOLD 10
@@ -45,8 +47,7 @@ bool is_frontier(unsigned p, Map const &map)
 
 std::vector<Frontier> WFD(Map const &map, unsigned minsize)
 {
-    enum State : int8_t
-    {
+    enum State : int8_t {
         NONE = 0,
         MAP_OPEN_LIST,       // Points that have been enqueued by the outer BFS
         MAP_CLOSE_LIST,      // Points that have been dequeued by the outer BFS
@@ -157,6 +158,59 @@ std::vector<Frontier> WFD(Map const &map, unsigned minsize)
             }
         }
         states[p] = MAP_CLOSE_LIST;
+    }
+
+    return frontiers;
+}
+
+std::vector<Frontier> frontier_search(Map const &map, unsigned minsize) {}
+
+std::vector<Frontier> parallel_search(Map const &map, unsigned minsize)
+{
+    std::map<unsigned, bool> frontier_points{};
+#pragma omp thread_num(4) parallel for schedule(dynamic, 5000)
+    for (unsigned i = 0; i < map.size; ++i)
+    {
+        if (is_frontier(i, map))
+#pragma omp critical
+            frontier_points[i] = true;
+    }
+
+    std::vector<Frontier> frontiers{};
+    for (auto &pair : frontier_points)
+    {
+        unsigned p{pair.first};
+        if (!pair.second)
+            continue;
+
+        std::queue<unsigned> queue_f{};
+        std::vector<unsigned> points{};
+        queue_f.push(p);
+
+        // Inner BFS to find adjacent frontier points
+        while (!queue_f.empty())
+        {
+            unsigned q{queue_f.front()};
+            queue_f.pop();
+
+            if (!frontier_points[q])
+                continue;
+
+            points.push_back(q);
+            unsigned adj_q[8];
+            adj(q, map, adj_q);
+            for (auto &w : adj_q)
+            {
+                if (frontier_points[w])
+                {
+                    queue_f.push(w);
+                    frontier_points[q] = false;
+                }
+            }
+        }
+
+        if (points.size() >= minsize)
+            frontiers.push_back(Frontier{points, map});
     }
 
     return frontiers;

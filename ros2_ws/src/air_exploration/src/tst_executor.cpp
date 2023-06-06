@@ -24,6 +24,7 @@
 #include "explore_executor.hpp"
 #include "undock_executor.hpp"
 #include "navigate_executor.hpp"
+#include "explore_executor_lab3.cpp"
 
 using namespace rclcpp;
 using namespace TstML;
@@ -62,6 +63,7 @@ public:
         tst_executor_registry->registerNodeExecutor<DefaultNodeExecutor::Sequence>(tst_registry->model("seq"));
         tst_executor_registry->registerNodeExecutor<DefaultNodeExecutor::Concurrent>(tst_registry->model("conc"));
         tst_executor_registry->registerNodeExecutor<ExploreExecutor>(tst_registry->model("explore"));
+        tst_executor_registry->registerNodeExecutor<ExploreExecutorLab>(tst_registry->model("explore_lab"));
         tst_executor_registry->registerNodeExecutor<UndockExecutor>(tst_registry->model("undock"));
 	tst_executor_registry->registerNodeExecutor<NavigateExecutor>(tst_registry->model("drive-to"));
 

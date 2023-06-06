@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 #include <deque>
+#include <fstream>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
@@ -22,6 +23,7 @@
 
 #include "air_interfaces/srv/get_entities.hpp"
 #include <nav2_msgs/action/navigate_to_pose.hpp>
+#include <nav2_msgs/action/compute_path_to_pose.hpp>
 
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -44,12 +46,13 @@ public:
 private:
     std::deque<Frontier> frontiers{};
     std::unique_ptr<Frontier> current{};
+    std::vector<Frontier> visited{};
 
     std::shared_ptr<rclcpp::Node> node{};
     rclcpp::executors::MultiThreadedExecutor executor{};
     std::thread executor_thread{};
 
-    rclcpp::Subscription<OccupancyGrid>::SharedPtr map_sub{};
+    rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub{};
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub{};
     nav_msgs::msg::OccupancyGrid::SharedPtr map{};
     geometry_msgs::msg::PointStamped pos{};
@@ -60,12 +63,17 @@ private:
     rclcpp::TimerBase::SharedPtr timer{};
     geometry_msgs::msg::PointStamped pos_snapshot{};
 
+    rclcpp_action::Client<nav2_msgs::action::ComputePathToPose>::SharedPtr path_client{};
+    rclcpp_action::ClientGoalHandle<nav2_msgs::action::ComputePathToPose>::SharedPtr path_goal_handle{};
+
     std::unique_ptr<tf2_ros::Buffer> tf_buffer{};
     std::shared_ptr<tf2_ros::TransformListener> tf_listener{};
 
     rclcpp::Client<air_interfaces::srv::GetEntities>::SharedPtr entities_client{};
 
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr visualization_pub{};
+
+    std::ofstream bench;
 
 private:
     void generate_frontiers(Map map);
